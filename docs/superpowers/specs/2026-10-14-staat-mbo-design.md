@@ -50,7 +50,9 @@ Commando's:
 
 ## README
 
-Kort: wat het is, installeren (uv + R + `staat1cho`), de drie schermen, de commando's, beperkingen in één lijstje.
+Kort: wat het is, installeren (uv + R + `staat1cho`), de drie schermen, de commando's, beperkingen in één lijstje. Schrijf voor iemand die nog nooit een terminal heeft geopend.
+
+Bovenaan een demovideo met Nederlandse voice-over: uploaden → samenvoegen → dashboard doorklikken. Gemaakt met de `demo-video`-skill uit `cedanl/.github` (Playwright, piper-tts, FFmpeg) op de demodata van `mbo-bekostiging-bestanden`, geüpload naar de GitHub-CDN zodat hij inline speelt. Het opnamescript staat in de repo, zodat de video opnieuw te maken is als de app verandert.
 
 ## Buiten scope
 
