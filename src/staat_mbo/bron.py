@@ -27,6 +27,10 @@ class InvoerFout(Exception):
     """Fout in de invoer, met een tekst voor de gebruiker."""
 
 
+def _eerste_regel(e: Exception) -> str:
+    return str(e).strip().splitlines()[0] if str(e).strip() else type(e).__name__
+
+
 def _bestanden(invoer: list[Path], werkmap: Path) -> list[Path]:
     """Alle bestanden uit de invoer: mappen doorzocht, zips uitgepakt."""
     gevonden: list[Path] = []
@@ -37,8 +41,11 @@ def _bestanden(invoer: list[Path], werkmap: Path) -> list[Path]:
             gevonden += [p for p in sorted(pad.rglob("*")) if p.is_file()]
         elif pad.suffix.lower() == ".zip":
             doel = werkmap / "zip" / pad.stem
-            with zipfile.ZipFile(pad) as z:
-                z.extractall(doel)
+            try:
+                with zipfile.ZipFile(pad) as z:
+                    z.extractall(doel)
+            except zipfile.BadZipFile as e:
+                raise InvoerFout(f"{pad.name}: geen geldig zipbestand.") from e
             gevonden += [p for p in sorted(doel.rglob("*")) if p.is_file()]
         else:
             gevonden.append(pad)
@@ -87,11 +94,18 @@ def _bouw_star(bestanden: list[Path], werkmap: Path) -> dict[str, pl.DataFrame]:
             run_auto_pipeline(b, doel)
         except KwaliteitsFout as e:
             raise InvoerFout(f"{b.name}: kwaliteitscontrole mislukt. {e}") from e
+        except ValueError as e:
+            raise InvoerFout(
+                f"{b.name}: kan dit bestand niet lezen. Is het een echt DUO-bestand? "
+                f"({_eerste_regel(e)})"
+            ) from e
         brondata.append(doel)
     try:
         run_star(brondata, werkmap / "star", scenario="smbo")
-    except KwaliteitsFout as e:
-        raise InvoerFout(f"Samenvoegen mislukt bij de kwaliteitscontrole. {e}") from e
+    except (KwaliteitsFout, ValueError) as e:
+        raise InvoerFout(
+            f"Samenvoegen mislukt bij de kwaliteitscontrole. {_eerste_regel(e)}"
+        ) from e
     return _lees_parquet(sorted((werkmap / "star" / "datamodel").glob("*.parquet")))
 
 

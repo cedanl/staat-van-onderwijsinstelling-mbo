@@ -5,7 +5,12 @@ import polars as pl
 from staat_mbo.stapelcontrole import controleer_stapel
 
 
-def _star(leveringen, jaren=(2020, 2021, 2022, 2023, 2024), namen=("Curio",)):
+def _star(
+    leveringen,
+    jaren=(2020, 2021, 2022, 2023, 2024),
+    namen=("Curio",),
+    laatste=None,
+):
     return {
         "fact_inschrijving_schooljaar": pl.DataFrame(
             {
@@ -15,16 +20,7 @@ def _star(leveringen, jaren=(2020, 2021, 2022, 2023, 2024), namen=("Curio",)):
             },
             schema={"BRIN": pl.Utf8, "_persoon_id": pl.Utf8, "Schooljaar": pl.Int32},
         ),
-        "meta_leveringen": pl.DataFrame(
-            leveringen,
-            schema={
-                "levering": pl.Utf8,
-                "BRIN": pl.Utf8,
-                "DatumBeginPeriode": pl.Date,
-                "DatumEindePeriode": pl.Date,
-            },
-            orient="row",
-        ),
+        "meta_leveringen": _leveringen(leveringen, laatste),
         "dim_instelling": pl.DataFrame(
             {
                 "BRIN": [f"B{i}" for i in range(len(namen))],
@@ -32,6 +28,21 @@ def _star(leveringen, jaren=(2020, 2021, 2022, 2023, 2024), namen=("Curio",)):
             }
         ),
     }
+
+
+def _leveringen(rijen, laatste):
+    df = pl.DataFrame(
+        rijen,
+        schema={
+            "levering": pl.Utf8,
+            "BRIN": pl.Utf8,
+            "DatumBeginPeriode": pl.Date,
+            "DatumEindePeriode": pl.Date,
+        },
+        orient="row",
+    )
+    peil = laatste or [date(2024, 10, 1)] * df.height
+    return df.with_columns(pl.Series("Laatste_peildatum", peil, dtype=pl.Date))
 
 
 def test_aansluitende_leveringen_geen_gat():
@@ -108,3 +119,16 @@ def test_demo_stapel(demo_star):
     r = controleer_stapel(star)
     assert r.ok
     assert r.brins == ["21CY", "25LX", "27DV"]
+
+
+def test_brins_met_ander_einde_waarschuwing():
+    r = controleer_stapel(
+        _star(
+            [
+                ("a", "21CY", date(2020, 8, 1), date(2024, 7, 31)),
+                ("b", "25LX", date(2020, 8, 1), date(2025, 7, 31)),
+            ],
+            laatste=[date(2023, 10, 1), date(2024, 10, 1)],
+        )
+    )
+    assert any("21CY" in w and "uitval" in w for w in r.waarschuwingen)

@@ -221,3 +221,24 @@ def test_demo_heeft_geen_dubbele_sleutels(demo_star):
     )
     assert rij.is_duplicated().sum() == 0
     assert df["verblijfsjaar_actuele_instelling"].min() >= 1
+
+
+def test_diploma_na_wissel_zonder_rij_valt_op_laatste_rij_van_student():
+    # 1-10-2022 in 25711, in januari naar 25916, diploma juli 2023: geen rij in 25916.
+    star = _star(
+        [("21CY", "p1", "1", 2022, date(2022, 8, 1), "25711", "MBO-3", True)],
+        [
+            ("p1", "25711", date(2022, 8, 1), date(2022, 8, 1), None, None),
+            (
+                "p1",
+                "25916",
+                date(2022, 8, 1),
+                date(2023, 1, 9),
+                date(2023, 7, 1),
+                "25916",
+            ),
+        ],
+    )
+    rij = naar_1cho(star).row(0, named=True)
+    assert rij["diplomajaar"] == 2022
+    assert rij["soort_diploma_instelling"] == LABEL_DIPLOMA

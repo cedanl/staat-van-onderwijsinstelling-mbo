@@ -56,6 +56,33 @@ def _gaten(leveringen: pl.DataFrame) -> list[dict]:
     return gaten
 
 
+def _ongelijk_einde(leveringen: pl.DataFrame) -> list[str]:
+    """BRIN's die eerder ophouden dan de rest.
+
+    staat1cho telt iedereen die in het laatste jaar ontbreekt als vertrokken;
+    stopt een BRIN eerder, dan lijkt daar iedereen uitgevallen.
+    """
+    if "Laatste_peildatum" not in leveringen.columns:
+        return []
+    einde = (
+        leveringen.filter(pl.col("BRIN").is_not_null())
+        .group_by("BRIN")
+        .agg(pl.col("Laatste_peildatum").max())
+        .drop_nulls()
+        .sort("BRIN")
+    )
+    if einde.is_empty():
+        return []
+    laatste = einde["Laatste_peildatum"].max()
+    return [
+        f"de bestanden van {brin} lopen tot {datum:%d-%m-%Y}, de rest tot "
+        f"{laatste:%d-%m-%Y}; uitval van {brin} na {datum:%Y} is niet te "
+        "vertrouwen. Upload ook de nieuwste RO van deze BRIN."
+        for brin, datum in einde.iter_rows()
+        if datum < laatste
+    ]
+
+
 def controleer_stapel(star: dict[str, pl.DataFrame]) -> Stapelrapport:
     feit = star["fact_inschrijving_schooljaar"]
     namen = sorted(set(star["dim_instelling"]["Instelling_naam"].drop_nulls()))
@@ -77,6 +104,7 @@ def controleer_stapel(star: dict[str, pl.DataFrame]) -> Stapelrapport:
             f"gat in de leveringen van {g['brin']} tussen {g['na']} en {g['voor']}; "
             "rendement en uitval rond dit gat zijn onbetrouwbaar."
         )
+    rapport.waarschuwingen += _ongelijk_einde(star["meta_leveringen"])
     if len(namen) > 1:
         rapport.waarschuwingen.append(
             f"de bestanden horen bij {', '.join(namen)}; ze tellen als één bestuur."

@@ -25,3 +25,12 @@ def test_fout_geeft_exitcode_en_melding(salt, tmp_path):
     meldingen = (tmp_path / BESTAND_MELDINGEN).read_text(encoding="utf-8")
     assert meldingen.startswith("Niet gelukt") and "Geen RO" in meldingen
     assert not (tmp_path / BESTAND_1CHO).exists()
+
+
+def test_kapot_bestand_geeft_melding_zonder_traceback(salt, tmp_path, capsys):
+    kapot = tmp_path / "RO_99XX_20250101_20251231.csv"
+    kapot.write_text("dit;is;geen;RO\n", encoding="utf-8")
+    code = main(["samenvoegen", str(kapot), "--uitvoer", str(tmp_path / "uit")])
+    assert code == 1
+    meldingen = (tmp_path / "uit" / BESTAND_MELDINGEN).read_text(encoding="utf-8")
+    assert meldingen.startswith("Niet gelukt") and "RO_99XX" in meldingen

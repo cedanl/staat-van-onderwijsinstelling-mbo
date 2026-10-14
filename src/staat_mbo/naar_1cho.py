@@ -131,7 +131,11 @@ def _starts(star: dict[str, pl.DataFrame]) -> tuple[pl.DataFrame, pl.DataFrame]:
 def _diplomas(df: pl.DataFrame, ins: pl.DataFrame) -> pl.DataFrame:
     """Zet diplomajaar op de rij van die opleiding in of vóór het diplomajaar.
 
-    Is er geen rij in of vóór het diplomajaar, dan de vroegste rij.
+    Is er geen rij in of vóór het diplomajaar, dan de vroegste rij van die
+    opleiding. Heeft de opleiding geen rij op 1 oktober (bijv. gewisseld na
+    1 oktober), dan de laatste rij van de student in of vóór het diplomajaar,
+    bij voorkeur de hoofdinschrijving; anders telt het diploma niet mee en
+    lijkt de student uitgevallen.
     """
     dip = (
         ins.filter(pl.col("DIP_DatumResultaat").is_not_null())
@@ -143,9 +147,9 @@ def _diplomas(df: pl.DataFrame, ins: pl.DataFrame) -> pl.DataFrame:
         .group_by(_P, "Opleidingcode")
         .agg(pl.col("_diplomajaar").min())
     )
-    doel = (
-        df.select(_P, "Opleidingcode", "Schooljaar")
-        .join(dip, on=[_P, "Opleidingcode"])
+    rijen = df.select(_P, "Opleidingcode", "Schooljaar", "_hoofd")
+    eigen = (
+        rijen.join(dip, on=[_P, "Opleidingcode"])
         .group_by(_P, "Opleidingcode", "_diplomajaar")
         .agg(
             pl.col("Schooljaar")
@@ -160,6 +164,19 @@ def _diplomas(df: pl.DataFrame, ins: pl.DataFrame) -> pl.DataFrame:
             "_diplomajaar",
             pl.coalesce("_voor", "_eerste").alias("Schooljaar"),
         )
+    )
+    zonder_rij = dip.join(rijen, on=[_P, "Opleidingcode"], how="anti")
+    ander = (
+        rijen.join(zonder_rij.select(_P, "_diplomajaar"), on=_P)
+        .filter(pl.col("Schooljaar") <= pl.col("_diplomajaar"))
+        .sort([_P, "Schooljaar", "_hoofd"], descending=[False, True, True])
+        .unique([_P, "_diplomajaar"], keep="first", maintain_order=True)
+        .select(_P, "Opleidingcode", "_diplomajaar", "Schooljaar")
+    )
+    doel = (
+        pl.concat([eigen, ander], how="vertical_relaxed")
+        .group_by(_P, "Opleidingcode", "Schooljaar")
+        .agg(pl.col("_diplomajaar").min())
     )
     return df.join(doel, on=[_P, "Opleidingcode", "Schooljaar"], how="left")
 

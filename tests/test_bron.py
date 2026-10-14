@@ -60,3 +60,17 @@ def test_grondslag_geweigerd(salt, tmp_path):
     shutil.copy(next(RUW.glob("RO_27DV*")), g)
     with pytest.raises(InvoerFout, match="GRONDSLAG"):
         laad_star([g], tmp_path / "werk")
+
+
+def test_kapot_ro_bestand_geeft_fout(salt, tmp_path):
+    kapot = tmp_path / "RO_99XX_20250101_20251231.csv"
+    kapot.write_text("dit;is;geen;RO\n1;2;3;4\n", encoding="utf-8")
+    with pytest.raises(InvoerFout, match="RO_99XX"):
+        laad_star([kapot], tmp_path / "werk")
+
+
+def test_kapotte_zip_geeft_fout(tmp_path):
+    kapot = tmp_path / "datamodel.zip"
+    kapot.write_bytes(b"geen zip")
+    with pytest.raises(InvoerFout, match="datamodel.zip"):
+        laad_star([kapot], tmp_path / "werk")

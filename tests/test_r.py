@@ -66,3 +66,15 @@ def test_voorstap_kopieert_met_originele_naam(salt, tmp_path):
         encoding="utf-8",
     )
     assert uit.stdout.startswith("TRUE|Gelukt"), uit.stderr
+
+
+def test_r_zonder_beheerrechten_en_nieuwste_versie(monkeypatch, tmp_path):
+    systeem = tmp_path / "ProgramFiles" / "R"
+    gebruiker = tmp_path / "LocalAppData" / "Programs" / "R"
+    for versie in ("R-4.9.1", "R-4.10.0"):
+        (gebruiker / versie / "bin").mkdir(parents=True)
+        (gebruiker / versie / "bin" / "Rscript.exe").write_text("")
+    monkeypatch.setattr(shutil, "which", lambda _: None)
+    monkeypatch.setattr("staat_mbo.r._WINDOWS_R", str(systeem))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "LocalAppData"))
+    assert vind_rscript().parent.parent.name == "R-4.10.0"

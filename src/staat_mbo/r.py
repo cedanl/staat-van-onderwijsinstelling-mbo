@@ -34,13 +34,23 @@ def r_env() -> dict[str, str]:
     }
 
 
+def _versie(rscript: Path) -> tuple[int, ...]:
+    """(4, 10, 0) uit .../R-4.10.0/bin/Rscript.exe, zodat 4.10 na 4.9 komt."""
+    delen = rscript.parent.parent.name.removeprefix("R-").split(".")
+    return tuple(int(d) if d.isdigit() else 0 for d in delen)
+
+
 def vind_rscript() -> Path:
     gevonden = shutil.which("Rscript")
     if gevonden:
         return Path(gevonden)
-    kandidaten = sorted(Path(_WINDOWS_R).glob("R-*/bin/Rscript.exe"))
+    ## R zonder beheerrechten staat in de gebruikersmap.
+    mappen = [Path(_WINDOWS_R)]
+    if os.environ.get("LOCALAPPDATA"):
+        mappen.append(Path(os.environ["LOCALAPPDATA"]) / "Programs" / "R")
+    kandidaten = [r for m in mappen for r in m.glob("R-*/bin/Rscript.exe")]
     if kandidaten:
-        return kandidaten[-1]
+        return max(kandidaten, key=_versie)
     raise RFout("R is niet gevonden. Installeer R: https://cran.r-project.org")
 
 
