@@ -2,6 +2,10 @@
 
 Zie in één dashboard hoe het je studenten vergaat: hoeveel er instromen, hoeveel er binnen 3, 5 of 8 jaar een diploma halen, hoeveel er uitvallen en hoeveel er van opleiding wisselen. Je gebruikt alleen de bestanden die je al van DUO krijgt.
 
+<video src="https://github.com/cedanl/staat-van-onderwijsinstelling-mbo/releases/download/demo-videos/demo_final.mp4" controls width="100%"></video>
+
+*Speelt de video niet? [Download hem hier](https://github.com/cedanl/staat-van-onderwijsinstelling-mbo/releases/download/demo-videos/demo_final.mp4) (1,5 minuut, met uitleg).*
+
 ## Wat heb je nodig?
 
 - Je **RO-bestanden** (Registratieoverzicht) van DUO. Eén RO beslaat maximaal 2 jaar; met 5 opeenvolgende RO's heb je ongeveer 10 jaar.

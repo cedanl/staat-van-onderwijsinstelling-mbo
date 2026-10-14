@@ -4,3 +4,9 @@ uitvoer/
 .superpowers/
 demo-video/voices/
 demo-video/scenes/*.webm
+demo-video/audio/
+demo-video/scenes/take.webm
+demo-video/scenes/tijden.json
+demo-video/demo_final.mp4
+demo-video/app.log
+demo-video/narration.txt
