@@ -39,4 +39,13 @@ def main(argv: list[str] | None = None) -> int:
         rapport = samenvoegen(args.invoer, args.uitvoer)
         print("\n".join(rapport.meldingen()))
         return 0 if rapport.ok else 1
-    raise NotImplementedError(args.commando)
+
+    from staat_mbo.r import RFout, draai_r
+
+    try:
+        if args.commando == "staat":
+            return draai_r("staat.R", str(args.bestand), str(args.uitvoer))
+        return draai_r("dashboard.R")
+    except RFout as e:
+        print(e)
+        return 1
