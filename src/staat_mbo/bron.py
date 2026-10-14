@@ -1,0 +1,112 @@
+"""Invoer inlezen: ruwe RO/TBG-i-bestanden of de star van mbo-bekostiging-bestanden."""
+
+import os
+import zipfile
+from pathlib import Path
+
+import polars as pl
+from mbo_bekostiging_bestanden.pipeline import (
+    detect_bestandstype,
+    run_auto_pipeline,
+    run_star,
+)
+from mbo_bekostiging_bestanden.quality import KwaliteitsFout
+
+VEREISTE_TABELLEN = (
+    "fact_inschrijving_schooljaar",
+    "fact_inschrijving",
+    "dim_deelnemer",
+    "dim_opleiding",
+    "dim_instelling",
+    "meta_leveringen",
+)
+_SALT = "MBO_PSEUDONIMISERING_SALT"
+
+
+class InvoerFout(Exception):
+    """Fout in de invoer, met een tekst voor de gebruiker."""
+
+
+def _bestanden(invoer: list[Path], werkmap: Path) -> list[Path]:
+    """Alle bestanden uit de invoer: mappen doorzocht, zips uitgepakt."""
+    gevonden: list[Path] = []
+    for pad in invoer:
+        if not pad.exists():
+            raise InvoerFout(f"Bestand of map niet gevonden: {pad}")
+        if pad.is_dir():
+            gevonden += [p for p in sorted(pad.rglob("*")) if p.is_file()]
+        elif pad.suffix.lower() == ".zip":
+            doel = werkmap / "zip" / pad.stem
+            with zipfile.ZipFile(pad) as z:
+                z.extractall(doel)
+            gevonden += [p for p in sorted(doel.rglob("*")) if p.is_file()]
+        else:
+            gevonden.append(pad)
+    return gevonden
+
+
+def _lees_parquet(bestanden: list[Path]) -> dict[str, pl.DataFrame]:
+    star = {p.stem: pl.read_parquet(p) for p in bestanden if p.suffix == ".parquet"}
+    ontbrekend = [t for t in VEREISTE_TABELLEN if t not in star]
+    if ontbrekend:
+        raise InvoerFout(
+            "Het datamodel is niet compleet. Ontbreekt: "
+            + ", ".join(ontbrekend)
+            + ". Gebruik de volledige uitvoer van mbo-bekostiging-bestanden."
+        )
+    return star
+
+
+def _controleer_ruwe_bestanden(bestanden: list[Path]) -> None:
+    for b in bestanden:
+        soort = detect_bestandstype(b)
+        if soort == "grondslag":
+            raise InvoerFout(
+                f"{b.name}: GRONDSLAG-bestanden gebruiken we niet. "
+                "Upload alleen RO en TBG-i."
+            )
+        if soort is None:
+            raise InvoerFout(
+                f"{b.name}: onbekend bestand. De naam moet beginnen met RO_ of TBGI_."
+            )
+    if not any(detect_bestandstype(b) == "ro" for b in bestanden):
+        raise InvoerFout("Geen RO-bestand gevonden. Upload minstens één RO.")
+    if not os.environ.get(_SALT):
+        raise InvoerFout(
+            "De sleutel voor pseudonimiseren ontbreekt. Zet de omgevingsvariabele "
+            f"{_SALT} (zie README, stap Installeren)."
+        )
+
+
+def _bouw_star(bestanden: list[Path], werkmap: Path) -> dict[str, pl.DataFrame]:
+    _controleer_ruwe_bestanden(bestanden)
+    brondata = []
+    for b in bestanden:
+        doel = werkmap / "brondata" / b.stem
+        try:
+            run_auto_pipeline(b, doel)
+        except KwaliteitsFout as e:
+            raise InvoerFout(f"{b.name}: kwaliteitscontrole mislukt. {e}") from e
+        brondata.append(doel)
+    try:
+        run_star(brondata, werkmap / "star", scenario="smbo")
+    except KwaliteitsFout as e:
+        raise InvoerFout(f"Samenvoegen mislukt bij de kwaliteitscontrole. {e}") from e
+    return _lees_parquet(sorted((werkmap / "star" / "datamodel").glob("*.parquet")))
+
+
+def laad_star(invoer: list[Path], werkmap: Path) -> dict[str, pl.DataFrame]:
+    """Lees de invoer als star-tabellen.
+
+    Args:
+        invoer:  Ruwe RO/TBG-i-bestanden, een ``datamodel/``-map, losse
+                 parquetbestanden of een zip met een van beide.
+        werkmap: Map voor tussenbestanden.
+    """
+    werkmap.mkdir(parents=True, exist_ok=True)
+    bestanden = _bestanden(invoer, werkmap)
+    if not bestanden:
+        raise InvoerFout("Geen bestanden gevonden.")
+    if any(b.stem == "fact_inschrijving_schooljaar" for b in bestanden):
+        return _lees_parquet(bestanden)
+    return _bouw_star(bestanden, werkmap)
