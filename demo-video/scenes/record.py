@@ -16,7 +16,7 @@ from playwright.sync_api import sync_playwright
 
 DEMO = Path(__file__).parent.parent
 sys.path.insert(0, str(DEMO))
-from stappen import STAPPEN  # noqa: E402
+from stappen import STAPPEN
 
 RAW = Path(__file__).parent
 RUW = DEMO.parent / "tests" / "fixtures" / "ruw"
@@ -39,7 +39,7 @@ def wacht_op_app(timeout=90):
         try:
             urllib.request.urlopen(APP_URL, timeout=2)
             return
-        except Exception:
+        except OSError:
             time.sleep(0.5)
     raise RuntimeError(f"App niet bereikbaar op {APP_URL}")
 
@@ -109,45 +109,86 @@ def neem_op(page):
     rustig(page)
     o.tijden["_klaar"] = time.monotonic() - o.t0
 
-    o.stap("intro", page.locator(".upload-card"), "Eén pagina",
-           "Uploaden, samenvoegen, dashboard.")
+    o.stap(
+        "intro",
+        page.locator(".upload-card"),
+        "Eén pagina",
+        "Uploaden, samenvoegen, dashboard.",
+    )
     page.set_input_files("#bron_upload", sorted(str(p) for p in RUW.iterdir()))
     page.wait_for_selector("text=Upload complete", timeout=60000)
-    invoerveld = page.locator(".shiny-input-container", has=page.locator("#bron_upload"))
-    o.stap("bestanden", invoerveld.first, "1 · Bestanden kiezen",
-           "Alle RO- en TBG-i-bestanden tegelijk.")
+    invoerveld = page.locator(
+        ".shiny-input-container", has=page.locator("#bron_upload")
+    )
+    o.stap(
+        "bestanden",
+        invoerveld.first,
+        "1 · Bestanden kiezen",
+        "Alle RO- en TBG-i-bestanden tegelijk.",
+    )
     knop = page.locator("#btn_samenvoegen")
-    o.stap("samenvoegen", knop, "2 · Samenvoegen", "Eén klik.",
-           actie=lambda: klik(page, knop))
+    o.stap(
+        "samenvoegen",
+        knop,
+        "2 · Samenvoegen",
+        "Eén klik.",
+        actie=lambda: klik(page, knop),
+    )
     page.wait_for_selector("text=Gelukt", timeout=180000)
     rustig(page)
-    o.stap("gelukt", page.locator("#voorstap_resultaat_ui > div").first, "3 · Resultaat",
-           "Jaren, studenten en aandachtspunten.", kleur="groen")
+    o.stap(
+        "gelukt",
+        page.locator("#voorstap_resultaat_ui > div").first,
+        "3 · Resultaat",
+        "Jaren, studenten en aandachtspunten.",
+        kleur="groen",
+    )
     verder = page.locator("#btn_verder")
-    o.stap("verder", verder, "4 · Verder", "Naar het dashboard.",
-           actie=lambda: klik(page, verder))
+    o.stap(
+        "verder",
+        verder,
+        "4 · Verder",
+        "Naar het dashboard.",
+        actie=lambda: klik(page, verder),
+    )
     page.wait_for_selector(".dashboard-header", timeout=180000)
     rustig(page)
     time.sleep(4)
 
-    tabs = page.locator("ul.nav", has=page.locator(".nav-link", has_text="Rendement")).first
+    tabs = page.locator(
+        "ul.nav", has=page.locator(".nav-link", has_text="Rendement")
+    ).first
     o.stap("tabs", tabs, "Onderdelen", "Instroom, rendement, uitval, studiewissel.")
     klik(page, page.locator(".nav-link", has_text="Rendement").first)
     rustig(page)
     time.sleep(2)
     page.locator("#kpi_rend3 .bslib-value-box").wait_for(timeout=60000)
-    o.stap("rendement", [page.locator(f"#kpi_rend{j} .bslib-value-box") for j in (3, 5, 8)], "Rendement",
-           "Diploma binnen 3, 5 of 8 jaar.")
+    o.stap(
+        "rendement",
+        [page.locator(f"#kpi_rend{j} .bslib-value-box") for j in (3, 5, 8)],
+        "Rendement",
+        "Diploma binnen 3, 5 of 8 jaar.",
+    )
     klik(page, page.locator(".nav-link", has_text="Uitval").first)
     rustig(page)
     time.sleep(2)
     page.locator("#kpi_uitval_kpi .bslib-value-box").wait_for(timeout=60000)
     kpis = ["#kpi_uitval_kpi", "#kpi_uitval1", "#kpi_uitval3"]
-    o.stap("uitval", [page.locator(f"{k} .bslib-value-box") for k in kpis], "Uitval",
-           "Vertrokken zonder diploma.")
+    o.stap(
+        "uitval",
+        [page.locator(f"{k} .bslib-value-box") for k in kpis],
+        "Uitval",
+        "Vertrokken zonder diploma.",
+    )
     bol = page.locator("#vorm_filter label", has_text="BOL").first
-    o.stap("filter", page.locator("#vorm_filter"), "Filters", "Bijvoorbeeld BOL of BBL.",
-           kleur="oranje", actie=lambda: klik(page, bol))
+    o.stap(
+        "filter",
+        page.locator("#vorm_filter"),
+        "Filters",
+        "Bijvoorbeeld BOL of BBL.",
+        kleur="oranje",
+        actie=lambda: klik(page, bol),
+    )
     rustig(page)
     time.sleep(1.5)
     o.stap("slot", page.locator("#btn_opnieuw"), "Opnieuw", "Andere bestanden laden.")

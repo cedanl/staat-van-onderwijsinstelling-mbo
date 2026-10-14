@@ -77,7 +77,14 @@ def _markeer_hoofdinschrijving(df: pl.DataFrame) -> pl.DataFrame:
     hoofdinschrijvingen per BRIN.
     """
     volgorde = df.with_columns(_niveau=_niveau_getal(pl.col("Niveau"))).sort(
-        [_P, "Schooljaar", "_hoofdinschrijving", "_niveau", "Opleidingcode", "DatumBegin"],
+        [
+            _P,
+            "Schooljaar",
+            "_hoofdinschrijving",
+            "_niveau",
+            "Opleidingcode",
+            "DatumBegin",
+        ],
         descending=[False, False, True, True, False, True],
         nulls_last=True,
     )
@@ -208,12 +215,14 @@ def naar_1cho(star: dict[str, pl.DataFrame]) -> pl.DataFrame:
         leeg.alias("indicatie_internationale_student"),
         leeg.alias("indicatie_eer_actueel"),
         pl.col("Opleiding_domein").alias("croho_onderdeel_actuele_opleiding"),
-        pl.concat_str("BRIN", "Instelling_naam", separator=" ", ignore_nulls=True)
-        .alias("vestigingsnummer_gemeentenaam_volgens_rio"),
+        pl.concat_str(
+            "BRIN", "Instelling_naam", separator=" ", ignore_nulls=True
+        ).alias("vestigingsnummer_gemeentenaam_volgens_rio"),
         pl.col("Opleidingcode").alias("opleiding_actueel_equivalent"),
         pl.col("Opleiding_naam").alias("opleidingscode_naam_opleiding"),
-        pl.concat_str(pl.lit("niveau "), _niveau_getal(pl.col("Niveau")))
-        .alias("type_hoger_onderwijs_binnen_soort_hoger_onderwijs"),
+        pl.concat_str(pl.lit("niveau "), _niveau_getal(pl.col("Niveau"))).alias(
+            "type_hoger_onderwijs_binnen_soort_hoger_onderwijs"
+        ),
         leeftijd_op_1_oktober(pl.col("Geboortedatum"), pl.col("Schooljaar"))
         .cast(pl.Int32)
         .alias("leeftijd_per_peildatum_1_oktober"),

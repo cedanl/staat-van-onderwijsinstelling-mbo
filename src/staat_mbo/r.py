@@ -49,11 +49,14 @@ def controleer_staat1cho(rscript: Path) -> None:
         [
             str(rscript),
             "-e",
-            'cat(if (requireNamespace("staat1cho", quietly = TRUE)) '
-            'as.character(packageVersion("staat1cho")) else "")',
+            (
+                'cat(if (requireNamespace("staat1cho", quietly = TRUE)) '
+                'as.character(packageVersion("staat1cho")) else "")'
+            ),
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     versie = uit.stdout.strip()
     if not versie:
@@ -67,4 +70,4 @@ def draai_r(script: str, *args: str) -> int:
     rscript = vind_rscript()
     controleer_staat1cho(rscript)
     opdracht = [str(rscript), str(script_pad(script)), *args]
-    return subprocess.run(opdracht, env=r_env()).returncode
+    return subprocess.run(opdracht, env=r_env(), check=False).returncode

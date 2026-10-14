@@ -13,7 +13,9 @@ def test_demo_samenvoegen(salt, tmp_path):
     assert csv.startswith("persoonsgebonden_nummer;")
     rapport = json.loads((tmp_path / BESTAND_RAPPORT).read_text(encoding="utf-8"))
     assert rapport["ok"] is True
-    assert (tmp_path / BESTAND_MELDINGEN).read_text(encoding="utf-8").startswith("Gelukt")
+    assert (
+        (tmp_path / BESTAND_MELDINGEN).read_text(encoding="utf-8").startswith("Gelukt")
+    )
 
 
 def test_fout_geeft_exitcode_en_melding(salt, tmp_path):

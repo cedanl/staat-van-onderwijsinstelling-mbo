@@ -13,7 +13,7 @@ from pathlib import Path
 from piper import PiperVoice
 
 sys.path.insert(0, str(Path(__file__).parent))
-from stappen import STAPPEN  # noqa: E402
+from stappen import STAPPEN
 
 DEMO = Path(__file__).parent
 VOICES = DEMO / "voices"
@@ -24,7 +24,14 @@ VOICES.mkdir(exist_ok=True)
 AUDIO.mkdir(exist_ok=True)
 if not (VOICES / f"{VOICE}.onnx").exists():
     subprocess.run(
-        [sys.executable, "-m", "piper.download_voices", "--download-dir", str(VOICES), VOICE],
+        [
+            sys.executable,
+            "-m",
+            "piper.download_voices",
+            "--download-dir",
+            str(VOICES),
+            VOICE,
+        ],
         check=True,
     )
 voice = PiperVoice.load(str(VOICES / f"{VOICE}.onnx"))

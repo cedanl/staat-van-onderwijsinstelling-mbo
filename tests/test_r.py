@@ -55,6 +55,7 @@ def test_voorstap_kopieert_met_originele_naam(salt, tmp_path):
     )
     uit = subprocess.run(
         [str(rscript), "-e", code],
+        check=False,
         env={
             **r_env(),
             "STAAT_MBO_DASHBOARD_R": script_pad("dashboard.R").as_posix(),

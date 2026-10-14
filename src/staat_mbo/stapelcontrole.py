@@ -3,6 +3,7 @@
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import timedelta
+from itertools import pairwise
 
 import polars as pl
 
@@ -37,9 +38,7 @@ class Stapelrapport:
         ]
 
     def naar_json(self) -> str:
-        return json.dumps(
-            {**asdict(self), "ok": self.ok}, ensure_ascii=False, indent=2
-        )
+        return json.dumps({**asdict(self), "ok": self.ok}, ensure_ascii=False, indent=2)
 
 
 def _gaten(leveringen: pl.DataFrame) -> list[dict]:
@@ -49,7 +48,7 @@ def _gaten(leveringen: pl.DataFrame) -> list[dict]:
     gaten = []
     for (brin,), groep in ro.group_by("BRIN", maintain_order=True):
         rijen = groep.select("DatumBeginPeriode", "DatumEindePeriode").rows()
-        for (_, einde), (begin, _) in zip(rijen, rijen[1:]):
+        for (_, einde), (begin, _) in pairwise(rijen):
             if begin > einde + timedelta(days=1):
                 gaten.append(
                     {"brin": brin, "na": einde.isoformat(), "voor": begin.isoformat()}

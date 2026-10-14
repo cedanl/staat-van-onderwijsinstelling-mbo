@@ -31,3 +31,6 @@ packages = ["src/staat_mbo"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.ruff]
+line-length = 88

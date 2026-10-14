@@ -30,7 +30,9 @@ def test_diplomajaar_venster_oktober_september():
 
 def test_leeftijd_op_1_oktober():
     geb = [date(2004, 10, 1), date(2004, 10, 2)]
-    uit = _waarde(leeftijd_op_1_oktober(pl.col("g"), pl.col("j")), g=geb, j=[2022, 2022])
+    uit = _waarde(
+        leeftijd_op_1_oktober(pl.col("g"), pl.col("j")), g=geb, j=[2022, 2022]
+    )
     assert uit == [18, 17]
 
 
