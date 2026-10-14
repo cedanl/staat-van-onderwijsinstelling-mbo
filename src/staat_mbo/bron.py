@@ -2,9 +2,12 @@
 
 import os
 import zipfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import polars as pl
+from mbo_bekostiging_bestanden.identiteit import laad_pseudonimisering_salt
 from mbo_bekostiging_bestanden.pipeline import (
     detect_bestandstype,
     run_auto_pipeline,
@@ -21,6 +24,11 @@ VEREISTE_TABELLEN = (
     "meta_leveringen",
 )
 _SALT = "MBO_PSEUDONIMISERING_SALT"
+## Vaste sleutel voor pseudonimiseren, zodat gebruikers niets hoeven in te
+## stellen en elke run dezelfde pseudoniemen geeft. Bewuste keuze: de sleutel
+## is publiek, dus de uitvoer blijft persoonsgegevens. Een eigen sleutel via
+## MBO_PSEUDONIMISERING_SALT gaat voor.
+INGEBOUWDE_SLEUTEL = "staat-van-onderwijsinstelling-mbo-v1"
 
 
 class InvoerFout(Exception):
@@ -78,15 +86,34 @@ def _controleer_ruwe_bestanden(bestanden: list[Path]) -> None:
             )
     if not any(detect_bestandstype(b) == "ro" for b in bestanden):
         raise InvoerFout("Geen RO-bestand gevonden. Upload minstens één RO.")
-    if not os.environ.get(_SALT):
-        raise InvoerFout(
-            "De sleutel voor pseudonimiseren ontbreekt. Zet de omgevingsvariabele "
-            f"{_SALT} (zie README, stap Installeren)."
-        )
+
+
+@contextmanager
+def _sleutel() -> Iterator[None]:
+    """Gebruik de ingebouwde sleutel als er geen eigen sleutel is gezet.
+
+    mbo-bekostiging-bestanden onthoudt de sleutel per proces; die cache wordt
+    geleegd zodat steeds de juiste sleutel geldt.
+    """
+    ingebouwd = not os.environ.get(_SALT)
+    if ingebouwd:
+        os.environ[_SALT] = INGEBOUWDE_SLEUTEL
+    laad_pseudonimisering_salt.cache_clear()
+    try:
+        yield
+    finally:
+        if ingebouwd:
+            del os.environ[_SALT]
+        laad_pseudonimisering_salt.cache_clear()
 
 
 def _bouw_star(bestanden: list[Path], werkmap: Path) -> dict[str, pl.DataFrame]:
     _controleer_ruwe_bestanden(bestanden)
+    with _sleutel():
+        return _verwerk(bestanden, werkmap)
+
+
+def _verwerk(bestanden: list[Path], werkmap: Path) -> dict[str, pl.DataFrame]:
     brondata = []
     for b in bestanden:
         doel = werkmap / "brondata" / b.stem

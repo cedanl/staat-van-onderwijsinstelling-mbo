@@ -52,8 +52,12 @@ Commando's:
 
 Kort: wat het is, installeren (uv + R + `staat1cho`), de drie schermen, de commando's, beperkingen in één lijstje. Schrijf voor iemand die nog nooit een terminal heeft geopend.
 
-Bovenaan een demovideo met Nederlandse voice-over: uploaden → samenvoegen → dashboard doorklikken. Gemaakt met de `demo-video`-skill uit `cedanl/.github` (Playwright, piper-tts, FFmpeg) op de demodata van `mbo-bekostiging-bestanden`, geüpload naar de GitHub-CDN zodat hij inline speelt. Het opnamescript staat in de repo, zodat de video opnieuw te maken is als de app verandert.
+Bovenaan een demovideo met Nederlandse voice-over: uploaden → samenvoegen → dashboard doorklikken. Gemaakt met de `demo-video`-skill uit `cedanl/.github` (Playwright, piper-tts, FFmpeg) op de demodata van `mbo-bekostiging-bestanden`; via github.com in de README gezet (sleep de video in de editor), niet in git. Het opnamescript staat in de repo, zodat de video opnieuw te maken is als de app verandert.
 
 ## Buiten scope
 
 GRONDSLAG, benchmark tussen instellingen, kansengelijkheid, mapping BRIN → bestuur, de toets op echte data (doet de gebruiker).
+
+## Pseudonimiseren
+
+Ingebouwde vaste sleutel (`bron.INGEBOUWDE_SLEUTEL`): gebruikers stellen niets in en elke run geeft dezelfde pseudoniemen. Een eigen sleutel via `MBO_PSEUDONIMISERING_SALT` gaat voor. Uitvoer blijft persoonsgegevens.

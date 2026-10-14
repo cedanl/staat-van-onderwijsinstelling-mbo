@@ -27,7 +27,7 @@ def test_geen_r_duidelijke_fout(monkeypatch):
 
 
 @pytest.mark.skipif(not heeft_r, reason="R niet geïnstalleerd")
-def test_staat_op_demodata(salt, tmp_path):
+def test_staat_op_demodata(ingebouwde_sleutel, tmp_path):
     invoer = [str(p) for p in sorted(RUW.iterdir())]
     assert main(["samenvoegen", *invoer, "--uitvoer", str(tmp_path / "s")]) == 0
     csv = str(tmp_path / "s" / "1cho_mbo.csv")
@@ -37,7 +37,7 @@ def test_staat_op_demodata(salt, tmp_path):
 
 
 @pytest.mark.skipif(not heeft_r, reason="R niet geïnstalleerd")
-def test_voorstap_kopieert_met_originele_naam(salt, tmp_path):
+def test_voorstap_kopieert_met_originele_naam(ingebouwde_sleutel, tmp_path):
     """Shiny noemt uploads 0.csv, 1.csv; het bestandstype hangt af van de naam."""
     rscript = vind_rscript()
     controleer_staat1cho(rscript)

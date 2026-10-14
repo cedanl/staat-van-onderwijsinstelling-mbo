@@ -1,15 +1,16 @@
 # Demovideo opnieuw maken
 
-Doe dit als het dashboard zichtbaar verandert. Alles draait op de demodata in `tests/fixtures/ruw`.
+Doe dit als het dashboard zichtbaar verandert. Alles draait op de demodata in `demodata/`.
 
 ```
 uv sync --group demo
 uv run --group demo python -m playwright install chromium
 uv run --group demo python demo-video/generate_audio.py     # voice-over per stap (piper)
-MBO_PSEUDONIMISERING_SALT=demo STAAT_MBO_POORT=8791 uv run smbo dashboard   # in een tweede terminal
+STAAT_MBO_POORT=8791 uv run smbo dashboard   # in een tweede terminal
 uv run --group demo python demo-video/scenes/record.py      # opname
 uv run python demo-video/stitch.py                          # video + stem, wachttijd eruit
-gh release upload demo-videos demo-video/demo_final.mp4 --clobber
 ```
+
+Zet de video in de README via github.com: bewerk `README.md`, sleep `demo_final.mp4` op de plek van de video en sla op. GitHub maakt er een link van die in de README afspeelt. De video zelf komt niet in git.
 
 Tekst aanpassen: `stappen.py` (ondertitel en uitspraak per stap), daarna alle stappen opnieuw.

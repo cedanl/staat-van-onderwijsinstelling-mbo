@@ -5,7 +5,7 @@ from staat_mbo.samenvoegen import BESTAND_1CHO, BESTAND_MELDINGEN, BESTAND_RAPPO
 from tests.conftest import RUW
 
 
-def test_demo_samenvoegen(salt, tmp_path):
+def test_demo_samenvoegen(ingebouwde_sleutel, tmp_path):
     invoer = [str(p) for p in sorted(RUW.iterdir())]
     code = main(["samenvoegen", *invoer, "--uitvoer", str(tmp_path)])
     assert code == 0
@@ -18,7 +18,7 @@ def test_demo_samenvoegen(salt, tmp_path):
     )
 
 
-def test_fout_geeft_exitcode_en_melding(salt, tmp_path):
+def test_fout_geeft_exitcode_en_melding(ingebouwde_sleutel, tmp_path):
     invoer = [str(p) for p in RUW.glob("TBGI_*")]
     code = main(["samenvoegen", *invoer, "--uitvoer", str(tmp_path)])
     assert code == 1
@@ -27,7 +27,9 @@ def test_fout_geeft_exitcode_en_melding(salt, tmp_path):
     assert not (tmp_path / BESTAND_1CHO).exists()
 
 
-def test_kapot_bestand_geeft_melding_zonder_traceback(salt, tmp_path, capsys):
+def test_kapot_bestand_geeft_melding_zonder_traceback(
+    ingebouwde_sleutel, tmp_path, capsys
+):
     kapot = tmp_path / "RO_99XX_20250101_20251231.csv"
     kapot.write_text("dit;is;geen;RO\n", encoding="utf-8")
     code = main(["samenvoegen", str(kapot), "--uitvoer", str(tmp_path / "uit")])

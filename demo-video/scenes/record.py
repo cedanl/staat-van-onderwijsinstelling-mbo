@@ -19,7 +19,7 @@ sys.path.insert(0, str(DEMO))
 from stappen import STAPPEN
 
 RAW = Path(__file__).parent
-RUW = DEMO.parent / "tests" / "fixtures" / "ruw"
+RUW = DEMO.parent / "demodata"
 APP_URL = "http://127.0.0.1:8791"
 VIEWPORT = {"width": 1280, "height": 800}
 DUREN = json.loads((DEMO / "audio" / "duren.json").read_text())

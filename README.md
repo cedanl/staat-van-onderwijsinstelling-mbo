@@ -2,9 +2,6 @@
 
 Zie in één dashboard hoe het je studenten vergaat: hoeveel er instromen, hoeveel er binnen 3, 5 of 8 jaar een diploma halen, hoeveel er uitvallen en hoeveel er van opleiding wisselen. Je gebruikt alleen de bestanden die je al van DUO krijgt.
 
-<video src="https://github.com/cedanl/staat-van-onderwijsinstelling-mbo/releases/download/demo-videos/demo_final.mp4" controls width="100%"></video>
-
-*Speelt de video niet? [Download hem hier](https://github.com/cedanl/staat-van-onderwijsinstelling-mbo/releases/download/demo-videos/demo_final.mp4) (1,5 minuut, met uitleg).*
 
 ## Wat heb je nodig?
 
@@ -23,11 +20,8 @@ Open een terminal: op Windows **PowerShell** (zoek in het startmenu), op Mac **T
 3. **Het R-pakket staat1cho**: open het programma **R** (staat nu in je startmenu of Programma's), plak deze regel en druk op Enter. Sluit R daarna.
    `install.packages("remotes"); remotes::install_github("cedanl/staat-van-onderwijsinstelling")`
 4. **Dit programma**: `uv tool install git+https://github.com/cedanl/staat-van-onderwijsinstelling-mbo`
-5. **Een geheime sleutel.** Hiermee worden BSN's en onderwijsnummers vervangen door een code. Kies een lange, willekeurige zin en deel die met niemand.
-   - Windows: `setx MBO_PSEUDONIMISERING_SALT "jouw-lange-geheime-zin"`
-   - Mac: `echo 'export MBO_PSEUDONIMISERING_SALT="jouw-lange-geheime-zin"' >> ~/.zshrc`
 
-   Sluit daarna de terminal en open een nieuwe.
+Sluit daarna de terminal en open een nieuwe.
 
 ## Gebruiken
 
@@ -36,6 +30,8 @@ Open een terminal: op Windows **PowerShell** (zoek in het startmenu), op Mac **T
 3. Lees de melding. Staat er **Gelukt**, klik dan **Verder naar het dashboard**.
 
 Sluit de terminal als je klaar bent; dan stopt het dashboard ook.
+
+**Eerst proberen zonder eigen bestanden?** In de map [`demodata`](demodata) staan nep-DUO-bestanden van drie instellingen. Download ze en upload ze in stap 2.
 
 ## Zonder scherm (voor automatisering)
 
@@ -52,6 +48,7 @@ Exitcode 0 betekent gelukt. Heb je de bestanden al verwerkt met [mbo-bekostiging
 - **Alle BRIN's die je uploadt tellen als één bestuur.** Een overstap tussen jullie eigen BRIN's is dus geen uitval.
 - **Telling op 1 oktober.** Wie alleen tussen twee 1 oktobers ingeschreven was, valt weg.
 - **Niet beschikbaar**: vooropleiding, woonplaats en herkomst. Die staan niet in de DUO-bestanden.
+- BSN's en onderwijsnummers worden vervangen door een code. Die code is wel terug te rekenen, dus behandel alle uitvoer als persoonsgegevens: houd hem binnen je instelling.
 - Laat het benchmarkrapport door je privacy officer toetsen voordat je het deelt.
 
 ## Meer weten
