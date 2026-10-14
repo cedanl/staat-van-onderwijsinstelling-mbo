@@ -33,4 +33,10 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.commando == "samenvoegen":
+        from staat_mbo.samenvoegen import samenvoegen
+
+        rapport = samenvoegen(args.invoer, args.uitvoer)
+        print("\n".join(rapport.meldingen()))
+        return 0 if rapport.ok else 1
     raise NotImplementedError(args.commando)
