@@ -2,21 +2,30 @@
 
 Elke audioclip start op het moment dat zijn stap in beeld komt
 (scenes/tijden.json). Wachttijd tussen stappen (rekenen, laden) wordt
-weggeknipt tot een korte overgang.
+weggeknipt tot een korte overgang. De ondertitels staan in een balk onder het
+beeld van de app, zodat ze nooit iets in de app afdekken.
 Aanroep: uv run python demo-video/stitch.py
 """
 
 import json
 import subprocess
+import sys
+import textwrap
 import wave
 from pathlib import Path
 
 DEMO = Path(__file__).parent
+sys.path.insert(0, str(DEMO))
+from stappen import STAPPEN
+
 TAKE = DEMO / "scenes" / "take.webm"
 UIT = DEMO / "demo_final.mp4"
 NA_STAP = 2.2  # seconden na de voice-over die in beeld blijven (klik, begin van laden)
 VOOR_STAP = 1.0  # seconden vóór de volgende stap
 EINDE = 2.0
+BALK = 120  # hoogte van de ondertitelbalk onder het beeld
+LETTER = r"C\:/Windows/Fonts/segoeuib.ttf"
+ONDERTITEL = {naam: sub for naam, sub, _ in STAPPEN}
 
 
 def duur(pad: Path) -> float:
@@ -57,8 +66,22 @@ for j, (a, b) in enumerate(stukken):
     filters.append(f"[0:v]trim=start={a:.3f}:end={b:.3f},setpts=PTS-STARTPTS[v{j}]")
 filters.append(
     "".join(f"[v{j}]" for j in range(len(stukken)))
-    + f"concat=n={len(stukken)}:v=1:a=0[v]"
+    + f"concat=n={len(stukken)}:v=1:a=0[vc]"
 )
+## Balk onder het beeld met per stap de ondertitel.
+teksten = []
+for naam, t, wav in stappen:
+    pad = DEMO / "audio" / f"ondertitel_{naam}.txt"
+    pad.write_text("\n".join(textwrap.wrap(ONDERTITEL[naam], 68)), encoding="utf-8")
+    van = nieuwe_tijd(t)
+    tot = van + duur(wav) + 0.7
+    tekstpad = pad.relative_to(DEMO.parent).as_posix()
+    teksten.append(
+        f"drawtext=fontfile='{LETTER}':textfile='{tekstpad}':fontsize=28:"
+        "fontcolor=white:line_spacing=8:x=(w-text_w)/2:"
+        f"y=h-{BALK}+({BALK}-text_h)/2:enable='between(t,{van:.2f},{tot:.2f})'"
+    )
+filters.append(f"[vc]pad=iw:ih+{BALK}:0:0:color=0x0f172a," + ",".join(teksten) + "[v]")
 invoer = ["-i", str(TAKE)]
 for i, (_, t, wav) in enumerate(stappen, start=1):
     invoer += ["-i", str(wav)]
@@ -70,7 +93,8 @@ filters.append(
 )
 
 subprocess.run(
-    [
+    cwd=DEMO.parent,
+    args=[
         "ffmpeg",
         "-y",
         "-loglevel",

@@ -3,11 +3,12 @@
 Start eerst de app met demodata (zie demo-video/README.md), dan:
     uv run --group demo python demo-video/scenes/record.py
 Schrijft scenes/take.webm en scenes/tijden.json (start van elke stap).
-Annotatiestijl en plaatsing: demo-video-skill uit cedanl/.github.
+In de pagina staat alleen een kader om het uitgelegde element; de ondertitels
+komen in een balk onder de video (stitch.py), zodat niets wordt afgedekt.
+Raakt een kader een ander element, dan stopt de opname met een fout.
 """
 
 import json
-import sys
 import time
 import urllib.request
 from pathlib import Path
@@ -15,20 +16,19 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 DEMO = Path(__file__).parent.parent
-sys.path.insert(0, str(DEMO))
-from stappen import STAPPEN
 
 RAW = Path(__file__).parent
 RUW = DEMO.parent / "demodata"
 APP_URL = "http://127.0.0.1:8791"
-VIEWPORT = {"width": 1280, "height": 800}
+VIEWPORT = {"width": 1280, "height": 720}
 DUREN = json.loads((DEMO / "audio" / "duren.json").read_text())
-ONDERTITEL = {naam: sub for naam, sub, _ in STAPPEN}
-ANNOTEER_JS = (RAW / "annoteer.js").read_text(encoding="utf-8")
+RING_JS = (RAW / "ring.js").read_text(encoding="utf-8")
 LEEG_JS = "() => document.querySelectorAll('.__a').forEach(e => e.remove())"
-BLOKKEREND = (
-    "button, .nav-link, .card-header, h1, h2, h3, h4, .shiny-input-container, "
-    ".js-plotly-plot, .bslib-value-box, table, .upload-hint, .dashboard-header"
+## Elementen die een kader niet mag raken.
+ELEMENTEN = (
+    "button, a, input, label, select, .nav-link, .card, .card-header, "
+    ".bslib-value-box, .shiny-input-container, .js-plotly-plot, h1, h2, h3, h4, "
+    "p, li, table, .dashboard-header, .upload-hint, .progress"
 )
 KLEUR = {"blauw": "#2563eb", "groen": "#16a34a", "oranje": "#ea580c"}
 
@@ -74,28 +74,19 @@ class Opname:
         self.page = page
         self.t0 = time.monotonic()
         self.tijden = {}
-        self.log = []
 
-    def stap(self, naam, target, label, tekst, kleur="blauw", actie=None):
-        """Annoteer en houd vast zolang de voice-over van deze stap duurt."""
+    def stap(self, naam, target, kleur="blauw", actie=None):
+        """Kader om het element; houd vast zolang de voice-over duurt."""
         locs = target if isinstance(target, list) else [target]
         locs[0].evaluate("e => e.scrollIntoView({block:'center'})")
-        time.sleep(0.4)
-        res = self.page.evaluate(
-            ANNOTEER_JS,
-            {
-                "box": box(locs),
-                "label": label,
-                "tekst": tekst,
-                "kleur": KLEUR[kleur],
-                "sub": ONDERTITEL[naam],
-                "selectors": BLOKKEREND,
-            },
+        time.sleep(0.5)
+        geraakt = self.page.evaluate(
+            RING_JS,
+            {"box": box(locs), "kleur": KLEUR[kleur], "selectors": ELEMENTEN},
         )
+        if geraakt:
+            raise RuntimeError(f"Kader van '{naam}' raakt andere elementen: {geraakt}")
         self.tijden[naam] = time.monotonic() - self.t0
-        self.log.append({"stap": naam, **res})
-        if res["scores"]["best"] > 0:
-            print(f"  let op: ondertitel van '{naam}' overlapt UI ({res['scores']})")
         time.sleep(DUREN[naam] + 0.7)
         self.page.evaluate(LEEG_JS)
         if actie:
@@ -112,8 +103,6 @@ def neem_op(page):
     o.stap(
         "intro",
         page.locator(".upload-card"),
-        "Eén pagina",
-        "Uploaden, samenvoegen, dashboard.",
     )
     page.set_input_files("#bron_upload", sorted(str(p) for p in RUW.iterdir()))
     page.wait_for_selector("text=Upload complete", timeout=60000)
@@ -123,15 +112,11 @@ def neem_op(page):
     o.stap(
         "bestanden",
         invoerveld.first,
-        "1 · Bestanden kiezen",
-        "Alle RO- en TBG-i-bestanden tegelijk.",
     )
     knop = page.locator("#btn_samenvoegen")
     o.stap(
         "samenvoegen",
         knop,
-        "2 · Samenvoegen",
-        "Eén klik.",
         actie=lambda: klik(page, knop),
     )
     page.wait_for_selector("text=Gelukt", timeout=180000)
@@ -139,16 +124,12 @@ def neem_op(page):
     o.stap(
         "gelukt",
         page.locator("#voorstap_resultaat_ui > div").first,
-        "3 · Resultaat",
-        "Jaren, studenten en aandachtspunten.",
         kleur="groen",
     )
     verder = page.locator("#btn_verder")
     o.stap(
         "verder",
         verder,
-        "4 · Verder",
-        "Naar het dashboard.",
         actie=lambda: klik(page, verder),
     )
     page.wait_for_selector(".dashboard-header", timeout=180000)
@@ -158,7 +139,7 @@ def neem_op(page):
     tabs = page.locator(
         "ul.nav", has=page.locator(".nav-link", has_text="Rendement")
     ).first
-    o.stap("tabs", tabs, "Onderdelen", "Instroom, rendement, uitval, studiewissel.")
+    o.stap("tabs", tabs)
     klik(page, page.locator(".nav-link", has_text="Rendement").first)
     rustig(page)
     time.sleep(2)
@@ -166,8 +147,6 @@ def neem_op(page):
     o.stap(
         "rendement",
         [page.locator(f"#kpi_rend{j} .bslib-value-box") for j in (3, 5, 8)],
-        "Rendement",
-        "Diploma binnen 3, 5 of 8 jaar.",
     )
     klik(page, page.locator(".nav-link", has_text="Uitval").first)
     rustig(page)
@@ -177,21 +156,20 @@ def neem_op(page):
     o.stap(
         "uitval",
         [page.locator(f"{k} .bslib-value-box") for k in kpis],
-        "Uitval",
-        "Vertrokken zonder diploma.",
     )
     bol = page.locator("#vorm_filter label", has_text="BOL").first
     o.stap(
         "filter",
         page.locator("#vorm_filter"),
-        "Filters",
-        "Bijvoorbeeld BOL of BBL.",
         kleur="oranje",
         actie=lambda: klik(page, bol),
     )
     rustig(page)
     time.sleep(1.5)
-    o.stap("slot", page.locator("#btn_opnieuw"), "Opnieuw", "Andere bestanden laden.")
+    ## De knop staat in de vaste kopbalk; scrol terug zodat er niets onder ligt.
+    page.evaluate("() => window.scrollTo({top: 0})")
+    time.sleep(0.8)
+    o.stap("slot", page.locator("#btn_opnieuw"))
     time.sleep(1.0)
     return o
 
@@ -218,7 +196,7 @@ def main():
     doel.unlink(missing_ok=True)
     Path(video).rename(doel)
     (RAW / "tijden.json").write_text(
-        json.dumps({"tijden": o.tijden, "log": o.log}, indent=2), encoding="utf-8"
+        json.dumps({"tijden": o.tijden}, indent=2), encoding="utf-8"
     )
     print(json.dumps(o.tijden, indent=2))
 
