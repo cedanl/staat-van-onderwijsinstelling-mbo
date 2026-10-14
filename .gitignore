@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+uitvoer/
+.superpowers/
+demo-video/voices/
+demo-video/scenes/*.webm
