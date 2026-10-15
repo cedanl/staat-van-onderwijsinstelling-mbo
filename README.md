@@ -11,7 +11,7 @@ Zie in één dashboard hoe het je studenten vergaat: hoeveel er instromen, hoeve
 
 ## Installeren (één keer)
 
-Open een terminal: op Windows **PowerShell** (zoek in het startmenu), op Mac **Terminal**. Plak de regels één voor één en druk op Enter.
+Open een terminal: op Windows **PowerShell** (zoek in het startmenu), op Mac **Terminal**. Plak de regels één voor één en druk op Enter. Alleen stap 3 doe je in R; de rest in de terminal.
 
 1. **uv** (installeert Python voor je)
    - Windows: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
@@ -19,7 +19,7 @@ Open een terminal: op Windows **PowerShell** (zoek in het startmenu), op Mac **T
 2. **R**: download en installeer van [cran.r-project.org](https://cran.r-project.org). Kies alle standaardopties.
 3. **Het R-pakket staat1cho**: open het programma **R** (staat nu in je startmenu of Programma's), plak deze regel en druk op Enter. Sluit R daarna.
    `install.packages("remotes"); remotes::install_github("cedanl/staat-van-onderwijsinstelling")`
-4. **Dit programma**: `uv tool install git+https://github.com/cedanl/staat-van-onderwijsinstelling-mbo`
+4. **Dit programma**: ga terug naar de terminal (niet R!) en plak: `uv tool install git+https://github.com/cedanl/staat-van-onderwijsinstelling-mbo`
 
 Sluit daarna de terminal en open een nieuwe.
 
