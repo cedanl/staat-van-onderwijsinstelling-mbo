@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import polars as pl
+
 from staat_mbo.cli import main
 from staat_mbo.samenvoegen import BESTAND_1CHO, BESTAND_MELDINGEN, BESTAND_RAPPORT
 from tests.conftest import RUW
@@ -27,6 +29,9 @@ def test_demodata_vult_het_dashboard(ingebouwde_sleutel, tmp_path):
     rapport = json.loads((tmp_path / BESTAND_RAPPORT).read_text(encoding="utf-8"))
     assert len(rapport["schooljaren"]) >= 6
     assert 1000 <= rapport["aantal_studenten"] <= 2000
+    df = pl.read_csv(tmp_path / BESTAND_1CHO, separator=";")
+    assert df["nominale_duur"].null_count() == 0
+    assert set(df["nominale_duur"]) <= {1, 2, 3, 4}
 
 
 def test_fout_geeft_exitcode_en_melding(ingebouwde_sleutel, tmp_path):

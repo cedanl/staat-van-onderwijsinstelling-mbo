@@ -3,7 +3,13 @@
 from pathlib import Path
 
 from staat_mbo.bron import InvoerFout, laad_star
-from staat_mbo.naar_1cho import naar_1cho, schrijf_1cho
+from staat_mbo.naar_1cho import (
+    MIN_INSCHRIJVINGEN_DUUR,
+    naar_1cho,
+    nominale_duur,
+    opleidingen_met_standaardduur,
+    schrijf_1cho,
+)
 from staat_mbo.stapelcontrole import Stapelrapport, controleer_stapel
 
 BESTAND_1CHO = "1cho_mbo.csv"
@@ -23,7 +29,17 @@ def samenvoegen(invoer: list[Path], uitvoer: Path) -> Stapelrapport:
         star = laad_star(invoer, uitvoer / "werk")
         rapport = controleer_stapel(star)
         if rapport.ok:
-            schrijf_1cho(naar_1cho(star), uitvoer / BESTAND_1CHO)
+            duur = nominale_duur(star)
+            df = naar_1cho(star, duur)
+            zonder, totaal = opleidingen_met_standaardduur(df, duur)
+            if zonder:
+                rapport.waarschuwingen.append(
+                    f"{zonder} van de {totaal} opleidingen (per leerweg) hebben minder "
+                    f"dan {MIN_INSCHRIJVINGEN_DUUR} inschrijvingen om de nominale duur "
+                    "uit de geplande einddatum te halen; daar geldt de standaardduur "
+                    "per niveau (1, 2, 3 of 4 jaar)."
+                )
+            schrijf_1cho(df, uitvoer / BESTAND_1CHO)
     except InvoerFout as e:
         rapport = Stapelrapport([], [], [], 0, fouten=[str(e)])
     (uitvoer / BESTAND_MELDINGEN).write_text(
