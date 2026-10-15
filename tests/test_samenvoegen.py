@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from staat_mbo.cli import main
 from staat_mbo.samenvoegen import BESTAND_1CHO, BESTAND_MELDINGEN, BESTAND_RAPPORT
@@ -16,6 +17,16 @@ def test_demo_samenvoegen(ingebouwde_sleutel, tmp_path):
     assert (
         (tmp_path / BESTAND_MELDINGEN).read_text(encoding="utf-8").startswith("Gelukt")
     )
+
+
+def test_demodata_vult_het_dashboard(ingebouwde_sleutel, tmp_path):
+    """Genoeg jaren en studenten voor rendement, uitval en wissel per cohort."""
+    demodata = Path(__file__).parent.parent / "demodata"
+    code = main(["samenvoegen", str(demodata), "--uitvoer", str(tmp_path)])
+    assert code == 0
+    rapport = json.loads((tmp_path / BESTAND_RAPPORT).read_text(encoding="utf-8"))
+    assert len(rapport["schooljaren"]) >= 10
+    assert rapport["aantal_studenten"] >= 3000
 
 
 def test_fout_geeft_exitcode_en_melding(ingebouwde_sleutel, tmp_path):

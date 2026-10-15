@@ -2,8 +2,9 @@ from pathlib import Path
 
 import pytest
 
-## Demodata (nep, geen echte studenten) staat in de repo-root, ook voor gebruikers.
-RUW = Path(__file__).parent.parent / "demodata"
+## Kleine nep-DUO-bestanden in verschillende varianten (geen echte studenten).
+## De grote set voor gebruikers staat in demodata/ (scripts/maak_demodata.py).
+RUW = Path(__file__).parent / "fixtures" / "ruw"
 
 
 @pytest.fixture
