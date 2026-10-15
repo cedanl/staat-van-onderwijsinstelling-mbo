@@ -25,8 +25,8 @@ def test_demodata_vult_het_dashboard(ingebouwde_sleutel, tmp_path):
     code = main(["samenvoegen", str(demodata), "--uitvoer", str(tmp_path)])
     assert code == 0
     rapport = json.loads((tmp_path / BESTAND_RAPPORT).read_text(encoding="utf-8"))
-    assert len(rapport["schooljaren"]) >= 10
-    assert rapport["aantal_studenten"] >= 3000
+    assert len(rapport["schooljaren"]) >= 6
+    assert 1000 <= rapport["aantal_studenten"] <= 2000
 
 
 def test_fout_geeft_exitcode_en_melding(ingebouwde_sleutel, tmp_path):
