@@ -1,7 +1,7 @@
-"""Maak nep-RO-bestanden voor de demo: drie BRIN's, tien schooljaren.
+"""Maak nep-RO-bestanden voor de demo: één instelling, tien schooljaren.
 
 Verzonnen studenten, geen echte personen. Vast zaadgetal, dus elke run geeft
-dezelfde bestanden. Per BRIN een RO per twee schooljaren (2016-2017 t/m
+dezelfde bestanden. Een RO per twee schooljaren (2016-2017 t/m
 2024-2025), zoals DUO ze levert.
 
     uv run python scripts/maak_demodata.py
@@ -19,32 +19,25 @@ LAATSTE_JAAR = 2025  # laatste schooljaar (2025-2026)
 AANMAAK = date(2026, 10, 2)
 
 ## BRIN → (aanbieder, locatie, instroom per jaar, opleidingen (crebo, niveau)).
+## Eén instelling: vijf RO's van twee jaar geven samen tien schooljaren.
 INSTELLINGEN = {
-    "25LX": (
-        "101A742",
-        "100X969",
-        170,
-        [(25655, 4), (25779, 4), (25498, 2), (25475, 3), (25471, 4), (25251, 1)],
-    ),
     "27DV": (
         "100A501",
         "101X591",
-        230,
+        450,
         [
+            (25655, 4),
+            (25475, 3),
+            (25498, 2),
             (25187, 4),
             (25191, 3),
             (25192, 2),
-            (25263, 4),
             (25669, 3),
             (25225, 2),
+            (25132, 4),
+            (25167, 2),
             (25250, 1),
         ],
-    ),
-    "21CY": (
-        "101A741",
-        "100X974",
-        140,
-        [(25618, 3), (25167, 2), (25153, 3), (25132, 4), (25168, 2), (25171, 3)],
     ),
 }
 DUUR = {1: 1, 2: 2, 3: 3, 4: 3}

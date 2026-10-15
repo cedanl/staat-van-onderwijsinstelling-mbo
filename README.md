@@ -31,7 +31,7 @@ Sluit daarna de terminal en open een nieuwe.
 
 Sluit de terminal als je klaar bent; dan stopt het dashboard ook.
 
-**Eerst proberen zonder eigen bestanden?** In de map [`demodata`](demodata) staan nep-RO-bestanden van drie instellingen over tien schooljaren, met ruim 5000 verzonnen studenten. Download ze via de groene knop **Code** → **Download ZIP**, pak de zip uit en selecteer in stap 2 alle bestanden in de map `demodata`.
+**Eerst proberen zonder eigen bestanden?** In de map [`demodata`](demodata) staan vijf nep-RO-bestanden van één instelling: samen tien schooljaren met ruim 4000 verzonnen studenten. Download ze via de groene knop **Code** → **Download ZIP**, pak de zip uit en selecteer in stap 2 alle bestanden in de map `demodata`.
 
 ## Zonder scherm (voor automatisering)
 
