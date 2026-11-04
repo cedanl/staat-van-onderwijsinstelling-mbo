@@ -34,8 +34,9 @@ def test_demodata_geeft_gelukt_en_historiemeldingen(ingebouwde_sleutel):
     at.button[1].click().run()
     assert not at.exception
     assert "Gelukt" in at.success[0].value
-    assert any("Diplomaresultaat" in w.value for w in at.warning)
-    assert any("Startersresultaat" in w.value for w in at.warning)
+    ## Tien jaar historie: geen waarschuwing meer over DR of SR.
+    assert not any("Diplomaresultaat" in w.value for w in at.warning)
+    assert not any("Startersresultaat" in w.value for w in at.warning)
     assert at.session_state[SESSIE_ANALYSE].ok
 
 

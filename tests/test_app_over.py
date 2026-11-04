@@ -68,6 +68,9 @@ def test_dekking_met_genoeg_en_te_weinig_historie():
     assert dr.row(0, named=True)["2022-2023"] == "onvolledig"
 
 
-def test_meldingen_staan_op_de_pagina(pagina):
-    tekst = " ".join(m.value for m in pagina.markdown)
+def test_meldingen_staan_op_de_pagina(kort_analyse):
+    at = AppTest.from_file(str(PAGINA), default_timeout=120)
+    at.session_state[SESSIE_ANALYSE] = kort_analyse
+    at.run()
+    tekst = " ".join(m.value for m in at.markdown)
     assert "Diplomaresultaat: diploma's van vóór" in tekst

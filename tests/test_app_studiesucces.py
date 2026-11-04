@@ -74,7 +74,16 @@ def test_filter_niveau_3_laat_alleen_niveau_3_zien(pagina):
     assert any("norm Regeling studiesucces mbo: 68%" in c.value for c in pagina.caption)
 
 
-def test_onvolledig_dr_cijfer_wordt_gemarkeerd(pagina):
+def test_volledige_demodata_markeert_geen_onvolledig_cijfer(pagina):
+    tabel = pagina.dataframe[0].value
+    assert not any("⚠" in c for c in tabel["DR"])
+    assert not any("onvolledig: zie" in c.value for c in pagina.caption)
+
+
+def test_onvolledig_dr_cijfer_wordt_gemarkeerd(kort_analyse):
+    at = AppTest.from_file(str(PAGINA), default_timeout=120)
+    at.session_state[SESSIE_ANALYSE] = kort_analyse
+    pagina = at.run()
     tabel = pagina.dataframe[0].value
     assert any("⚠" in c for c in tabel["DR"])
     assert any("onvolledig" in c.value for c in pagina.caption)
