@@ -5,7 +5,8 @@ import polars as pl
 import streamlit as st
 
 from staat_mbo import overzicht as ov
-from staat_mbo.app import ui
+from staat_mbo import palet
+from staat_mbo.app import huisstijl, ui
 from staat_mbo.definities import DEFINITIES, NORM_LABEL
 
 NAMEN = {"JR": "Jaarresultaat", "DR": "Diplomaresultaat", "SR": "Startersresultaat"}
@@ -14,10 +15,9 @@ GROEPERINGEN = {
     "Opleiding": ["Opleidingcode", "Niveau"],
     "Niveau": ["Niveau"],
 }
-## Neutrale kleuren per niveau (geen rood of groen).
-NIVEAUKLEUR = alt.Scale(
-    domain=["Niveau 1", "Niveau 2", "Niveau 3", "Niveau 4"],
-    range=["#9aa5b1", "#4c78a8", "#f58518", "#b279a2"],
+## Vaste kleur per niveau uit het Npuls-palet; de norm blijft een neutrale stippellijn.
+NIVEAUKLEUR = huisstijl.schaal(
+    ["Niveau 1", "Niveau 2", "Niveau 3", "Niveau 4"], palet.NIVEAUKLEUREN
 )
 
 
@@ -55,7 +55,7 @@ def tijdlijn(df: pl.DataFrame, indicator: str) -> None:
     kleur = alt.Color("Niveau:N", scale=NIVEAUKLEUR, legend=alt.Legend(orient="bottom"))
     lijn = (
         alt.Chart(d.to_pandas())
-        .mark_line(point=True)
+        .mark_line(point=True, strokeWidth=3)
         .encode(
             x=x,
             y=alt.Y("Percentage:Q", title="%", scale=alt.Scale(domain=[0, 100])),
@@ -69,7 +69,7 @@ def tijdlijn(df: pl.DataFrame, indicator: str) -> None:
         .encode(x=x, y=alt.Y("Norm:Q"), color=kleur, tooltip=["Niveau", "Norm"])
     )
     st.subheader(NAMEN[indicator])
-    st.altair_chart(lijn + norm, width="stretch")
+    huisstijl.toon_grafiek(lijn + norm)
 
 
 st.title("Studiesucces")

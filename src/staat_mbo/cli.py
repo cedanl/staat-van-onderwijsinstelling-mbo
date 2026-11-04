@@ -8,6 +8,8 @@ import threading
 import webbrowser
 from pathlib import Path
 
+from staat_mbo.palet import thema_opties
+
 STANDAARD_POORT = 8501
 ## Seconden wachten voordat de browser opent, zodat de server klaar is.
 _WACHT_BROWSER = 2.0
@@ -70,6 +72,7 @@ def _dashboard(poort: int, geen_browser: bool, invoer: Path | None) -> int:
         str(poort),
         "--server.headless",
         "true",
+        *thema_opties(),
     ]
     if not geen_browser:
         _open_browser(f"http://localhost:{poort}")

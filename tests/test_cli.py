@@ -5,6 +5,7 @@ from pathlib import Path
 import staat_mbo
 from staat_mbo import cli
 from staat_mbo.cli import main
+from staat_mbo.palet import thema_opties
 
 APP = Path(cli.__file__).parent / "app" / "main.py"
 
@@ -46,6 +47,7 @@ def test_dashboard_start_streamlit(monkeypatch):
         "8599",
         "--server.headless",
         "true",
+        *thema_opties(),
     ]
     assert "STAAT_MBO_INVOER" not in kwargs["env"]
 

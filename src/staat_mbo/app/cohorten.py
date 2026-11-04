@@ -5,23 +5,22 @@ import polars as pl
 import streamlit as st
 
 from staat_mbo import overzicht as ov
-from staat_mbo.app import ui
+from staat_mbo import palet
+from staat_mbo.app import huisstijl, ui
 from staat_mbo.cohorten import HERKOMSTEN
 from staat_mbo.definities import DEFINITIES
 
-HERKOMSTKLEUR = alt.Scale(
-    domain=HERKOMSTEN, range=["#4c78a8", "#72b7b2", "#f58518", "#b279a2"]
-)
+HERKOMSTKLEUR = huisstijl.schaal(HERKOMSTEN, palet.HERKOMSTKLEUREN)
 ## Per maatstaf: titel, kolom en kleur; "nog niet waarneembaar" is grijs.
 RENDEMENT = {
-    "Nominaal": ("Nominaal_percentage", "#4c78a8"),
-    "Nominaal + 1": ("Nominaal_plus_1_percentage", "#f58518"),
+    "Nominaal": ("Nominaal_percentage", palet.BLAUW),
+    "Nominaal + 1": ("Nominaal_plus_1_percentage", palet.ORANJE),
 }
 UITVAL = {
-    "Uitval na 1 jaar": ("Uitval_1_percentage", "#4c78a8"),
-    "Uitval na nominale duur": ("Uitval_duur_percentage", "#f58518"),
+    "Uitval na 1 jaar": ("Uitval_1_percentage", palet.BLAUW),
+    "Uitval na nominale duur": ("Uitval_duur_percentage", palet.ORANJE),
 }
-GRIJS = "#c7ccd1"
+GRIJS = palet.NEUTRAAL
 
 
 def instroomgrafiek(instroom: pl.DataFrame) -> None:
@@ -39,7 +38,7 @@ def instroomgrafiek(instroom: pl.DataFrame) -> None:
             tooltip=["Cohort", "Herkomst", "Aantal"],
         )
     )
-    st.altair_chart(grafiek, width="stretch")
+    huisstijl.toon_grafiek(grafiek)
 
 
 def _maatstaven(df: pl.DataFrame, maten: dict, grijs: bool) -> pl.DataFrame:
@@ -68,8 +67,8 @@ def _maatstaven(df: pl.DataFrame, maten: dict, grijs: bool) -> pl.DataFrame:
 def percentagegrafiek(df: pl.DataFrame, maten: dict, titel: str) -> None:
     """Staven per cohort en maatstaf; niet-waarneembare cohorten zijn grijs."""
     data = _maatstaven(df, maten, grijs=True)
-    kleur = alt.Scale(
-        domain=[*maten, ov.NOG_NIET], range=[*(k for _, k in maten.values()), GRIJS]
+    kleur = huisstijl.schaal(
+        [*maten, ov.NOG_NIET], [*(k for _, k in maten.values()), GRIJS]
     )
     grafiek = (
         alt.Chart(data.to_pandas())
@@ -84,7 +83,7 @@ def percentagegrafiek(df: pl.DataFrame, maten: dict, titel: str) -> None:
             tooltip=["Cohort", "Maatstaf", "Soort", "Percentage"],
         )
     )
-    st.altair_chart(grafiek, width="stretch")
+    huisstijl.toon_grafiek(grafiek)
 
 
 def tekst(kolom: str) -> pl.Expr:

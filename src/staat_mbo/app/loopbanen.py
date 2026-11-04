@@ -5,11 +5,12 @@ import polars as pl
 import streamlit as st
 
 from staat_mbo import overzicht as ov
-from staat_mbo.app import ui
+from staat_mbo import palet
+from staat_mbo.app import huisstijl, ui
 from staat_mbo.cohorten import CATEGORIEEN
 from staat_mbo.definities import CATEGORIE_KLEUREN, CATEGORIE_TOELICHTING, DEFINITIES
 
-CATEGORIEKLEUR = alt.Scale(domain=CATEGORIEEN, range=CATEGORIE_KLEUREN)
+CATEGORIEKLEUR = huisstijl.schaal(CATEGORIEEN, CATEGORIE_KLEUREN)
 ## Welke categorieën bij een keuze horen; None is alles.
 UITKOMSTEN = {
     "Alle categorieën": None,
@@ -46,7 +47,7 @@ def staafgrafiek(v: pl.DataFrame, per: list[str], keuze: list[str] | None) -> No
         )
     grafiek = (
         alt.Chart(data.to_pandas())
-        .mark_bar()
+        .mark_bar(stroke=palet.GRIJS_400, strokeWidth=0.5)
         .encode(
             x=alt.X("Cohort:O", title="Instroomcohort"),
             y=alt.Y(
@@ -71,7 +72,7 @@ def staafgrafiek(v: pl.DataFrame, per: list[str], keuze: list[str] | None) -> No
     )
     if "Niveau" in per:
         grafiek = grafiek.encode(column=alt.Column("Niveau:N", title=None))
-    st.altair_chart(grafiek, width="stretch")
+    huisstijl.toon_grafiek(grafiek)
 
 
 def matrix(overgangen: pl.DataFrame) -> None:

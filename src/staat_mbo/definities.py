@@ -1,5 +1,7 @@
 """Teksten over de cijfers, op één plek: voor ``help=`` en de pagina Over de cijfers."""
 
+from staat_mbo import palet
+
 ## Het label dat op elke pagina met cijfers staat (ontwerp §3).
 LABEL = (
     "Indicatief: berekend op je eigen RO's, niet op het register (ROD) waarmee "
@@ -94,19 +96,8 @@ CATEGORIE_TOELICHTING = {
     ),
 }
 
-## Vaste kleuren per categorie, in dezelfde volgorde: diploma's blauw,
-## zonder diploma warm, uitval grijs. Geen rood of groen: het is geen oordeel.
-CATEGORIE_KLEUREN = [
-    "#1f4e79",
-    "#4c78a8",
-    "#9ecae1",
-    "#f2b134",
-    "#f58518",
-    "#b279a2",
-    "#9d7660",
-    "#6b6b6b",
-    "#d0d4d9",
-]
+## Vaste kleuren per categorie (Npuls-palet, zie palet.py), in dezelfde volgorde.
+CATEGORIE_KLEUREN = palet.CATEGORIE_KLEUREN
 
 NAMEN = {
     "jr": "Jaarresultaat",

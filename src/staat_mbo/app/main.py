@@ -4,10 +4,17 @@ from pathlib import Path
 
 import streamlit as st
 
+from staat_mbo.app import huisstijl
+
 _MAP = Path(__file__).parent
 
-st.set_page_config(page_title="Staat van de Onderwijsinstelling MBO", layout="wide")
+st.set_page_config(
+    page_title="Staat van de Onderwijsinstelling MBO",
+    layout="wide",
+    page_icon=str(huisstijl.LOGO),
+)
 
+huisstijl.toepassen()
 pagina = st.navigation(
     [
         st.Page(_MAP / "start.py", title="Start", default=True),

@@ -1,0 +1,163 @@
+/* Npuls-huisstijl (vormgever-npuls-huisstijl). Kleuren alleen uit design-tokens.json.
+   Plus Jakarta Sans is de digitale vervanger van General Sans. */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  --npuls-oranje: #DD784B;
+  --npuls-zwart: #000000;
+  --npuls-roze: #F4D9DC;
+  --npuls-blauw: #3D68EC;
+  --npuls-geel: #F4D74B;
+  --npuls-groen: #00AF81;
+  --npuls-wit: #FFFFFF;
+  --npuls-licht-groen: #CCEEE6;
+  --npuls-licht-blauw: #D6E2FD;
+  --npuls-licht-roze: #FAEAEA;
+  --npuls-licht-oranje: #FFE4D8;
+  --npuls-licht-geel: #FCF5D4;
+  --npuls-grijs-200: #DCDCE0;
+  --npuls-font: 'General Sans', 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --npuls-radius-md: 12px;
+  --npuls-radius-lg: 20px;
+  --npuls-shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+html, body, .stApp, button, input, textarea, select,
+[data-testid="stAppViewContainer"], [data-testid="stSidebar"],
+[data-baseweb] {
+  font-family: var(--npuls-font) !important;
+}
+/* Pictogrammen houden hun eigen lettertype. */
+[data-testid="stIconMaterial"], [class*="material-symbols"], .material-icons {
+  font-family: "Material Symbols Rounded" !important;
+}
+
+.stApp { background-color: var(--npuls-licht-blauw); color: var(--npuls-zwart); }
+[data-testid="stHeader"] { background: transparent; }
+.block-container { padding-top: 2.5rem; padding-bottom: 4rem; }
+
+/* Paginatitel: blauw vlak met geel (toegestane combinatie). */
+h1 {
+  background: var(--npuls-blauw);
+  color: var(--npuls-geel) !important;
+  font-weight: 600 !important;
+  font-size: clamp(2rem, 3.4vw, 2.8rem) !important;
+  line-height: 1.15 !important;
+  padding: 1.1rem 1.6rem !important;
+  margin-bottom: 1rem;
+  border-radius: var(--npuls-radius-lg);
+  border-bottom-right-radius: 64px;
+}
+h1 * { color: var(--npuls-geel) !important; }
+
+/* Koppen: zwart met een oranje streepje. */
+h2, h3, [data-testid="stHeading"] h2, [data-testid="stHeading"] h3 {
+  color: var(--npuls-zwart) !important;
+  font-weight: 600 !important;
+}
+h3 {
+  padding-bottom: 0.6rem !important;
+  background: linear-gradient(var(--npuls-oranje), var(--npuls-oranje)) left bottom / 3rem 4px no-repeat;
+}
+
+/* Zijbalk: roze met zwarte tekst, logo bovenin. */
+[data-testid="stSidebar"] {
+  background-color: var(--npuls-roze);
+  border-right: none;
+}
+[data-testid="stSidebar"] * { color: var(--npuls-zwart); }
+[data-testid="stSidebarHeader"] { background-color: var(--npuls-roze); padding-top: 1.2rem; }
+[data-testid="stSidebarHeader"] img, [data-testid="stLogo"] { border-radius: 14px; height: 4.5rem !important; max-width: none; }
+[data-testid="stSidebar"] h2, [data-testid="stSidebar"] [data-testid="stHeading"] {
+  font-size: 0.8rem !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600 !important;
+}
+/* Paginalinks: actieve pagina blauw met roze tekst. */
+[data-testid="stSidebarNav"] a {
+  border-radius: var(--npuls-radius-md);
+  font-weight: 600;
+}
+[data-testid="stSidebarNav"] a[aria-current="page"] {
+  background-color: var(--npuls-blauw);
+}
+[data-testid="stSidebarNav"] a[aria-current="page"] * { color: var(--npuls-roze) !important; }
+[data-testid="stSidebarNav"] a:hover { background-color: var(--npuls-licht-roze); }
+
+/* Knoppen: blauw met geel; secundair wit met blauwe rand. */
+.stButton > button, .stDownloadButton > button, [data-testid^="stBaseButton"] {
+  border-radius: 9999px;
+  font-weight: 600;
+}
+[data-testid="stBaseButton-primary"] {
+  background-color: var(--npuls-blauw);
+  border-color: var(--npuls-blauw);
+  color: var(--npuls-geel);
+}
+[data-testid="stBaseButton-primary"] * { color: var(--npuls-geel) !important; }
+[data-testid="stBaseButton-secondary"], .stDownloadButton > button {
+  background-color: var(--npuls-wit);
+  color: var(--npuls-blauw);
+  border: 2px solid var(--npuls-blauw);
+}
+[data-testid="stBaseButton-secondary"] *, .stDownloadButton > button * { color: var(--npuls-blauw) !important; }
+[data-testid="stBaseButton-secondary"]:hover, .stDownloadButton > button:hover {
+  background-color: var(--npuls-blauw);
+}
+[data-testid="stBaseButton-secondary"]:hover *, .stDownloadButton > button:hover * { color: var(--npuls-geel) !important; }
+
+/* Cijfertegels: wit vlak met een gekleurde band; kleur wisselt per tegel. */
+[data-testid="stMetric"] {
+  background: var(--npuls-wit);
+  border-radius: var(--npuls-radius-lg);
+  border-top: 8px solid var(--npuls-blauw);
+  padding: 1rem 1.25rem 1.1rem;
+  box-shadow: var(--npuls-shadow-md);
+}
+[data-testid="stColumn"]:nth-child(2) [data-testid="stMetric"] { border-top-color: var(--npuls-oranje); }
+[data-testid="stColumn"]:nth-child(3) [data-testid="stMetric"] { border-top-color: var(--npuls-groen); }
+[data-testid="stMetricLabel"] { font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.8rem; }
+[data-testid="stMetricValue"] { color: var(--npuls-blauw); font-weight: 600; }
+
+/* Grafieken en tabellen: wit vlak, afgerond. */
+[data-testid="stVegaLiteChart"], [data-testid="stDataFrame"], [data-testid="stTable"] {
+  background: var(--npuls-wit);
+  border-radius: var(--npuls-radius-lg);
+  box-shadow: var(--npuls-shadow-md);
+  overflow: hidden;
+}
+[data-testid="stDataFrame"] { padding: 0.5rem; }
+[data-testid="stExpander"] {
+  background: var(--npuls-wit);
+  border: none;
+  border-radius: var(--npuls-radius-lg);
+  box-shadow: var(--npuls-shadow-md);
+}
+[data-testid="stFileUploaderDropzone"] {
+  background: var(--npuls-licht-geel);
+  border: 2px dashed var(--npuls-oranje);
+  border-radius: var(--npuls-radius-lg);
+}
+
+/* Keuzelijsten: gekozen waarden blauw met roze tekst. */
+span[data-baseweb="tag"] { background-color: var(--npuls-blauw); border-radius: 9999px; }
+span[data-baseweb="tag"] * { color: var(--npuls-roze) !important; }
+
+/* Meldingen volgens feedback_colors: succes groen, info blauw, waarschuwing geel,
+   fout oranje (nooit rood). Tekst blijft zwart op een lichte achtergrond. */
+[data-testid="stAlert"] {
+  border-radius: var(--npuls-radius-lg);
+  border: none;
+  border-left: 8px solid var(--npuls-blauw);
+  background-color: var(--npuls-wit);
+  color: var(--npuls-zwart);
+}
+[data-testid="stAlert"] * { color: var(--npuls-zwart); }
+[data-testid="stAlertContentInfo"] { }
+[data-testid="stAlert"]:has([data-testid="stAlertContentInfo"]) { background-color: var(--npuls-wit); border-left-color: var(--npuls-blauw); }
+[data-testid="stAlert"]:has([data-testid="stAlertContentSuccess"]) { background-color: var(--npuls-licht-groen); border-left-color: var(--npuls-groen); }
+[data-testid="stAlert"]:has([data-testid="stAlertContentWarning"]) { background-color: var(--npuls-licht-geel); border-left-color: var(--npuls-geel); }
+[data-testid="stAlert"]:has([data-testid="stAlertContentError"]) { background-color: var(--npuls-licht-oranje); border-left-color: var(--npuls-oranje); }
+
+hr { border-color: var(--npuls-grijs-200); }
