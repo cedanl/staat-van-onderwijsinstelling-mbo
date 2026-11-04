@@ -41,7 +41,7 @@ class Stapelrapport:
         return json.dumps({**asdict(self), "ok": self.ok}, ensure_ascii=False, indent=2)
 
 
-def _gaten(leveringen: pl.DataFrame) -> list[dict]:
+def gaten(leveringen: pl.DataFrame) -> list[dict]:
     ro = leveringen.filter(pl.col("DatumBeginPeriode").is_not_null()).sort(
         "BRIN", "DatumBeginPeriode"
     )
@@ -54,6 +54,10 @@ def _gaten(leveringen: pl.DataFrame) -> list[dict]:
                     {"brin": brin, "na": einde.isoformat(), "voor": begin.isoformat()}
                 )
     return gaten
+
+
+## Oude naam, tot de R-brug en 1CHO verdwijnen (T19).
+_gaten = gaten
 
 
 def _ongelijk_einde(leveringen: pl.DataFrame) -> list[str]:

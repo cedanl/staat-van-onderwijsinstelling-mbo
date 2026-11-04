@@ -20,3 +20,12 @@ def demo_star(tmp_path_factory):
 
     werkmap = tmp_path_factory.mktemp("demo")
     return laad_star(sorted(RUW.iterdir()), werkmap), werkmap
+
+
+@pytest.fixture(scope="session")
+def demodata_star(tmp_path_factory):
+    """Star van de demodata (één instelling, meerdere jaren), één keer gebouwd."""
+    from staat_mbo.bron import laad_star
+
+    demodata = Path(__file__).parent.parent / "demodata"
+    return laad_star([demodata], tmp_path_factory.mktemp("demodata"))
