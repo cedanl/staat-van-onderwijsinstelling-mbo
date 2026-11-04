@@ -3,13 +3,12 @@
 from pathlib import Path
 
 from staat_mbo.bron import InvoerFout, laad_star
-from staat_mbo.naar_1cho import (
+from staat_mbo.duur import (
     MIN_INSCHRIJVINGEN_DUUR,
-    naar_1cho,
     nominale_duur,
     opleidingen_met_standaardduur,
-    schrijf_1cho,
 )
+from staat_mbo.naar_1cho import naar_1cho, schrijf_1cho
 from staat_mbo.stapelcontrole import Stapelrapport, controleer_stapel
 
 BESTAND_1CHO = "1cho_mbo.csv"

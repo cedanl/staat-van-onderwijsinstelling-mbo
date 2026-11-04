@@ -8,6 +8,7 @@ from pathlib import Path
 
 import polars as pl
 
+from staat_mbo.duur import STANDAARDDUUR
 from staat_mbo.loopbaan import eerste_peiljaar
 from staat_mbo.loopbaan import jaartijdvak as diplomajaar
 
@@ -34,11 +35,6 @@ KOLOMMEN_1CHO = [
     "postcodecijfers_van_de_hoogste_vooropl_voor_het_ho",
     "nominale_duur",
 ]
-## Minimaal aantal inschrijvingen per opleiding × leerweg voor een eigen
-## nominale duur; daaronder geldt de standaardduur per niveau.
-MIN_INSCHRIJVINGEN_DUUR = 10
-## Niveau 4 is meestal 4 jaar (studielast 6400 SBU in RIO), soms 3.
-STANDAARDDUUR = {1: 1, 2: 2, 3: 3, 4: 4}
 SOORT_ONDERWIJS = "mbo"
 LABEL_HOOFD = "hoofdinschrijving binnen het domein actuele instelling"
 LABEL_NEVEN = "neveninschrijving binnen het domein actuele instelling"
@@ -176,54 +172,6 @@ def _diplomas(df: pl.DataFrame, ins: pl.DataFrame) -> pl.DataFrame:
         .agg(pl.col("_diplomajaar").min())
     )
     return df.join(doel, on=[_P, "Opleidingcode", "Schooljaar"], how="left")
-
-
-def nominale_duur(star: dict[str, pl.DataFrame]) -> pl.DataFrame:
-    """Nominale duur in jaren per opleiding × leerweg, uit de geplande einddatum.
-
-    De school kan de geplande einddatum van één student verschuiven bij
-    vertraging; daarom de meest voorkomende geplande duur over alle
-    inschrijvingen, niet die van de student zelf. De datum hoort bij de
-    inschrijving: inschrijvingen met meer dan één opleiding tellen niet mee.
-    Bij een gelijke stand de langste duur, zodat niemand onterecht te laat is.
-    """
-    sleutel = [_P, "BRIN", "Inschrijvingvolgnummer"]
-    ins = star["fact_inschrijving"].unique([*sleutel, "Opleidingcode"])
-    een_opleiding = ins.filter(pl.col("Opleidingcode").n_unique().over(sleutel) == 1)
-    dagen = (
-        pl.col("DatumUitschrijvingGepland") - pl.col("DatumInschrijving")
-    ).dt.total_days() + 1
-    jaren = een_opleiding.drop_nulls(
-        ["DatumInschrijving", "DatumUitschrijvingGepland"]
-    ).select(
-        "Opleidingcode",
-        "Leertraject",
-        (dagen / 365.25).round().clip(lower_bound=1).cast(pl.Int32).alias("_jaren"),
-    )
-    return (
-        jaren.group_by("Opleidingcode", "Leertraject", "_jaren")
-        .len()
-        .with_columns(
-            pl.col("len").sum().over("Opleidingcode", "Leertraject").alias("_n")
-        )
-        .filter(pl.col("_n") >= MIN_INSCHRIJVINGEN_DUUR)
-        .sort(["len", "_jaren"], descending=True)
-        .unique(["Opleidingcode", "Leertraject"], keep="first", maintain_order=True)
-        .select("Opleidingcode", "Leertraject", pl.col("_jaren").alias("nominale_duur"))
-        .sort("Opleidingcode", "Leertraject")
-    )
-
-
-def opleidingen_met_standaardduur(
-    df: pl.DataFrame, duur: pl.DataFrame
-) -> tuple[int, int]:
-    """(zonder eigen nominale duur, totaal) over opleiding × leerweg in de uitvoer."""
-    opleidingen = df.select(
-        pl.col("opleiding_actueel_equivalent").alias("Opleidingcode"),
-        pl.col("opleidingsvorm").alias("Leertraject"),
-    ).unique()
-    zonder = opleidingen.join(duur, on=["Opleidingcode", "Leertraject"], how="anti")
-    return zonder.height, opleidingen.height
 
 
 def naar_1cho(
