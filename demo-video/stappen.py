@@ -76,7 +76,7 @@ STAPPEN = [
     ("uitvalcohort", "Uitval per cohort, na 1 jaar en na de nominale duur."),
     (
         "loopbanen",
-        "Loopbanen: waar studenten na 1, 2 of 3 jaar staan. Stapelen telt niet als uitval of wissel.",
+        "Loopbanen: waar studenten staan na de nominale duur. Stapelen telt niet als uitval of wissel.",
     ),
     ("niveaus", "Stapelen, opstromen en afstromen: dit onderscheidt het mbo."),
     (
@@ -154,7 +154,11 @@ CHIPS = {
         "oranje",
     ),
     "uitvalcohort": ("Uitval", "Na 1 jaar en na de nominale duur.", "oranje"),
-    "loopbanen": ("Loopbaanstatus", "Waar studenten na 1, 2 of 3 jaar staan.", "blauw"),
+    "loopbanen": (
+        "Loopbaanstatus",
+        "Na de nominale duur: elk niveau krijgt zijn tijd.",
+        "blauw",
+    ),
     "niveaus": ("Het mbo-eigene", "Stapelen, opstromen en afstromen.", "groen"),
     "over": (
         "Definities en bronnen",

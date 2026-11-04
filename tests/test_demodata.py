@@ -43,14 +43,15 @@ def test_stapelen_van_entree_naar_niveau_2(resultaten):
 
 def test_stapelen_naar_niveau_3_en_4(resultaten):
     verder = resultaten.loopbanen.filter(
-        (pl.col("Status") == "Diploma, verder op hoger niveau") & (pl.col("Jaren") == 3)
+        (pl.col("Status") == "Diploma, verder op hoger niveau")
+        & (pl.col("Moment") == "na nominale duur + 1")
     )
     assert _aantal(verder, Niveau=2) >= 30
     assert _aantal(verder, Niveau=3) >= 15
 
 
 def test_opstromen_en_afstromen_zonder_diploma(resultaten):
-    na_een_jaar = resultaten.loopbanen.filter(pl.col("Jaren") == 1)
+    na_een_jaar = resultaten.loopbanen.filter(pl.col("Moment") == "na 1 jaar")
     assert _aantal(na_een_jaar, Status="Zonder diploma, hoger niveau") >= 15
     assert _aantal(na_een_jaar, Status="Zonder diploma, lager niveau") >= 15
 

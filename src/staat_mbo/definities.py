@@ -57,7 +57,8 @@ DEFINITIES = {
     ),
     "loopbaanstatus": (
         "Loopbaanstatus: waar een student van het cohort staat op 1 oktober na "
-        "1, 2 of 3 jaar, in negen vaste categorieën."
+        "1 jaar, na de nominale duur van de opleiding of een jaar daarna, in "
+        "negen vaste categorieën."
     ),
     "studiewissel": (
         "Studiewissel: zonder diploma naar een ander crebo op hetzelfde niveau. "

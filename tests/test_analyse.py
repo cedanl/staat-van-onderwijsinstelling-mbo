@@ -1,6 +1,6 @@
 import polars as pl
 
-from staat_mbo.analyse import bereken, maak_analyse
+from staat_mbo.analyse import MOMENTEN, bereken, maak_analyse
 from tests.conftest import RUW
 
 
@@ -47,7 +47,7 @@ def test_bereken_op_de_demodata(demodata_analyse):
     assert {"Instroom_nieuw", "Instroom_na diploma", "Uitval_1_percentage"} <= set(
         r.cohorten.columns
     )
-    assert set(r.loopbanen["Jaren"]) == {1, 2, 3}
+    assert set(r.loopbanen["Moment"]) == set(MOMENTEN)
     assert {"weg", "n2", "n3"} <= set(r.overgangen["Naar"])
     # De herkomst telt op tot de instroom.
     herkomst = r.cohorten.select(pl.sum_horizontal(pl.col("^Instroom_.*$")))
@@ -56,7 +56,7 @@ def test_bereken_op_de_demodata(demodata_analyse):
 
 def test_uitval_en_status_hebben_een_rij_per_cohortrij(demodata_analyse):
     r = bereken(demodata_analyse)
-    per_k = r.loopbanen.group_by("Jaren").agg(pl.col("Aantal").sum())
+    per_k = r.loopbanen.group_by("Moment").agg(pl.col("Aantal").sum())
     assert per_k["Aantal"].n_unique() == 1
     assert per_k["Aantal"][0] == r.instroom["Aantal"].sum()
 

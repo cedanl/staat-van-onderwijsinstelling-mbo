@@ -32,8 +32,10 @@ DEMODATA = Path(staat_mbo.__file__).parent / "demodata"
 _P = "_persoon_id"
 _OPLEIDING = ["Opleidingcode", "Niveau", "Leertraject"]
 _COHORT = ["Cohort", *_OPLEIDING]
-## Loopbaanstatus wordt na 1, 2 en 3 jaar bepaald.
-LOOPBAAN_JAREN = (1, 2, 3)
+## Momenten waarop de loopbaanstatus wordt bepaald. Vaste jaren (1, 2, 3) werken
+## niet voor het mbo: een opleiding duurt 1 tot 4 jaar, dus na 1 jaar heeft alleen
+## entree een diploma. Daarom na 1 jaar en verder relatief aan de nominale duur.
+MOMENTEN = ("na 1 jaar", "na nominale duur", "na nominale duur + 1")
 
 
 @dataclass
@@ -197,9 +199,8 @@ def _uitval_na_duur(c: pl.DataFrame, r: pl.DataFrame, a: Analyse) -> pl.Series:
     return uit.alias("Uitval_duur")
 
 
-def _cohorten(a: Analyse, c: pl.DataFrame) -> pl.DataFrame:
+def _cohorten(a: Analyse, c: pl.DataFrame, r: pl.DataFrame) -> pl.DataFrame:
     """Rendement en uitval per cohort × opleiding, met de herkomst van de instroom."""
-    r = coh.rendement(c, a.diplomas, a.duur, a.waarneming, a.opvolgers)
     uit1 = coh.uitval(c, a.peilmomenten, a.diplomas, a.waarneming, 1, a.opvolgers)[
         "Uitval"
     ].alias("Uitval_1")
@@ -240,16 +241,38 @@ def _cohorten(a: Analyse, c: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def _loopbanen(a: Analyse, c: pl.DataFrame) -> pl.DataFrame:
-    """Aantal cohortrijen per cohort × opleiding × loopbaanstatus na 1, 2 en 3 jaar."""
+def _status_na(a: Analyse, c: pl.DataFrame, jaren: pl.Series) -> pl.Series:
+    """Loopbaanstatus van elke cohortrij na zijn eigen aantal jaren."""
+    uit = pl.Series("Status", [None] * c.height, dtype=pl.Utf8)
+    for k in sorted(jaren.drop_nulls().unique().to_list()):
+        s = coh.loopbaanstatus(
+            c, a.peilmomenten, a.diplomas, a.waarneming, k, a.opvolgers
+        )["Status"]
+        uit = pl.select(pl.when(jaren == k).then(s).otherwise(uit)).to_series()
+    return uit.alias("Status")
+
+
+def _loopbanen(a: Analyse, c: pl.DataFrame, r: pl.DataFrame) -> pl.DataFrame:
+    """Aantal cohortrijen per cohort × opleiding × moment × loopbaanstatus.
+
+    Momenten: na 1 jaar, na de nominale duur en na de nominale duur + 1 jaar
+    (``Duur`` uit het rendement, per opleiding en leerweg).
+    """
+    duur = r["Duur"]
+    jaren = {
+        MOMENTEN[0]: pl.Series([1] * c.height, dtype=pl.Int32),
+        MOMENTEN[1]: duur,
+        MOMENTEN[2]: duur + 1,
+    }
     delen = [
-        coh.loopbaanstatus(c, a.peilmomenten, a.diplomas, a.waarneming, k, a.opvolgers)
-        .group_by([*_COHORT, "Jaren", "Status"])
+        c.select(_COHORT)
+        .with_columns(pl.lit(moment).alias("Moment"), _status_na(a, c, k))
+        .group_by([*_COHORT, "Moment", "Status"])
         .len()
         .rename({"len": "Aantal"})
-        for k in LOOPBAAN_JAREN
+        for moment, k in jaren.items()
     ]
-    return pl.concat(delen).sort([*_COHORT, "Jaren", "Status"])
+    return pl.concat(delen).sort([*_COHORT, "Moment", "Status"])
 
 
 def _overgangen(a: Analyse) -> pl.DataFrame:
@@ -309,13 +332,14 @@ def bereken(a: Analyse) -> Resultaten:
                 "Opleidingcode": pl.Utf8,
                 "Niveau": pl.Int32,
                 "Leertraject": pl.Utf8,
-                "Jaren": pl.Int32,
+                "Moment": pl.Utf8,
                 "Status": pl.Utf8,
                 "Aantal": pl.UInt32,
             }
         )
     else:
-        cohorten, loopbanen = _cohorten(a, c), _loopbanen(a, c)
+        r = coh.rendement(c, a.diplomas, a.duur, a.waarneming, a.opvolgers)
+        cohorten, loopbanen = _cohorten(a, c, r), _loopbanen(a, c, r)
     return Resultaten(
         studiesucces=studiesucces(a),
         instroom=instroom,
