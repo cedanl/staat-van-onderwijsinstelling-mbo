@@ -170,7 +170,7 @@ def studiesucces(a: Analyse) -> pl.DataFrame:
         ("dr", ind.diplomaresultaat),
         ("sr", ind.startersresultaat),
     ):
-        eenjaars = functie(a.peilmomenten, a.diplomas, a.waarneming)
+        eenjaars = functie(a.peilmomenten, a.diplomas, a.waarneming, a.opvolgers)
         delen += [
             ind.driejaarscijfer(eenjaars, naam, a.waarneming, groep)
             for groep in ind.GROEPEN

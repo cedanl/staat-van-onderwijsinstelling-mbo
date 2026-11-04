@@ -13,6 +13,7 @@ from mbo_bekostiging_bestanden.waardenlijsten import (
     leertrajecten_buiten_indicatorpopulatie,
 )
 
+from staat_mbo.loopbaan import canoniek
 from staat_mbo.waarneming import Waarneming
 
 _P = "_persoon_id"
@@ -68,14 +69,22 @@ def _jaren_jr_dr(w: Waarneming) -> list[int]:
     return [t for t in range(w.eerste_jaar, w.laatste_jaar) if w.reeks(t, t + 1)]
 
 
-def jaarresultaat(pm: pl.DataFrame, dip: pl.DataFrame, w: Waarneming) -> pl.DataFrame:
+def jaarresultaat(
+    pm: pl.DataFrame,
+    dip: pl.DataFrame,
+    w: Waarneming,
+    opvolgers: dict[str, str] | None = None,
+) -> pl.DataFrame:
     """Jaarresultaat per jaartijdvak en opleiding (ontwerp §5.1).
 
     Teller: gediplomeerden met een diploma 2-4 in het jaartijdvak, toegerekend
     aan het laatste diploma, ook als ze pas na 1 oktober instroomden. Noemer:
     die gediplomeerden plus de ongediplomeerde instellingsverlaters. Wie
     zonder diploma blijft, telt niet mee.
+
+    Met ``opvolgers`` rekent een vernieuwd crebo samen met zijn voorganger.
     """
+    pm, dip = canoniek(pm, opvolgers), canoniek(dip, opvolgers)
     jaren = _jaren_jr_dr(w)
     laatste = (
         dip.filter(pl.col("Niveau").is_in(NIVEAUS) & pl.col("Jaartijdvak").is_in(jaren))
@@ -105,7 +114,10 @@ def dr_volledig(w: Waarneming, t: int) -> bool:
 
 
 def diplomaresultaat(
-    pm: pl.DataFrame, dip: pl.DataFrame, w: Waarneming
+    pm: pl.DataFrame,
+    dip: pl.DataFrame,
+    w: Waarneming,
+    opvolgers: dict[str, str] | None = None,
 ) -> pl.DataFrame:
     """Diplomaresultaat per jaartijdvak en opleiding (ontwerp §5.2).
 
@@ -113,7 +125,10 @@ def diplomaresultaat(
     vertrekken. Teller: verlaters met een diploma 2-4 uit het jaartijdvak of de
     vijf jaar ervoor, van welk crebo of niveau ook (een stapelaar die uitvalt
     telt positief). ``Volledig``: de diplomahistorie reikt ver genoeg terug.
+
+    Met ``opvolgers`` rekent een vernieuwd crebo samen met zijn voorganger.
     """
+    pm, dip = canoniek(pm, opvolgers), canoniek(dip, opvolgers)
     jaren = _jaren_jr_dr(w)
     verlaters = _verlaters(pm, jaren)
     vanaf = pl.date(pl.col("Jaartijdvak") - DIPLOMA_JAREN_TERUG, 10, 1)
@@ -159,7 +174,10 @@ def _jaren_sr(w: Waarneming) -> list[int]:
 
 
 def startersresultaat(
-    pm: pl.DataFrame, dip: pl.DataFrame, w: Waarneming
+    pm: pl.DataFrame,
+    dip: pl.DataFrame,
+    w: Waarneming,
+    opvolgers: dict[str, str] | None = None,
 ) -> pl.DataFrame:
     """Startersresultaat per jaartijdvak en opleiding (ontwerp §5.3).
 
@@ -168,7 +186,10 @@ def startersresultaat(
     op 1-10-(t+1) nog ingeschreven op niveau 2-4 (opstromen en wisselen blijven
     positief, afstromen naar entree niet). ``Terugblik`` is het aantal
     bekeken jaren; onder de 6 is het cijfer niet volledig.
+
+    Met ``opvolgers`` rekent een vernieuwd crebo samen met zijn voorganger.
     """
+    pm, dip = canoniek(pm, opvolgers), canoniek(dip, opvolgers)
     jaren = _jaren_sr(w)
     terugblik = {t: sr_terugblik(w, t) for t in jaren}
     kandidaat = pm.filter(_populatie() & pl.col("Jaar").is_in(jaren)).with_columns(
