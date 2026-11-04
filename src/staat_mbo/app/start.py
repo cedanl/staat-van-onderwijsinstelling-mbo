@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from staat_mbo.analyse import DEMODATA
+from staat_mbo.analyse import DEMODATA, kerncijfers
 from staat_mbo.app import invoer, ui
 
 st.title("Staat van de Onderwijsinstelling MBO")
@@ -44,6 +44,13 @@ analyse = ui.huidige_analyse()
 if analyse is not None:
     ui.toon_meldingen(analyse)
     if analyse.ok:
+        st.subheader("Kerncijfers")
+        ui.toon_label()
+        tegels = kerncijfers(ui.resultaten(analyse))
+        for rij in (tegels[:3], tegels[3:]):
+            for kolom, t in zip(st.columns(3), rij, strict=True):
+                kolom.metric(t.naam, t.waarde)
+                kolom.caption(f"{t.ondertitel}  \n{t.help}" if t.help else t.ondertitel)
         st.caption(
             "Kies links een pagina: Studiesucces, Cohorten, Loopbanen of "
             "Over de cijfers."

@@ -59,3 +59,37 @@ def test_uitval_en_status_hebben_een_rij_per_cohortrij(demodata_analyse):
     per_k = r.loopbanen.group_by("Jaren").agg(pl.col("Aantal").sum())
     assert per_k["Aantal"].n_unique() == 1
     assert per_k["Aantal"][0] == r.instroom["Aantal"].sum()
+
+
+def test_kerncijfers_op_de_demodata(demodata_analyse):
+    from staat_mbo.analyse import bereken, kerncijfers
+
+    tegels = {t.naam: t for t in kerncijfers(bereken(demodata_analyse))}
+    assert list(tegels) == [
+        "Jaarresultaat",
+        "Diplomaresultaat",
+        "Startersresultaat",
+        "Instroom",
+        "Uitval na 1 jaar",
+        "Doorstroom na diploma",
+    ]
+    assert tegels["Jaarresultaat"].waarde == "67,9%"
+    assert tegels["Diplomaresultaat"].waarde == "68,9%"
+    assert tegels["Startersresultaat"].waarde == "80,7%"
+    assert "2022-2023 t/m 2024-2025" in tegels["Jaarresultaat"].ondertitel
+    assert tegels["Instroom"].getal == 226
+    assert "2025" in tegels["Instroom"].ondertitel
+    assert tegels["Uitval na 1 jaar"].waarde == "16,4%"
+    assert "2024" in tegels["Uitval na 1 jaar"].ondertitel
+    assert tegels["Doorstroom na diploma"].waarde == "1,3%"
+    assert all(t.help for t in tegels.values())
+
+
+def test_kerncijfers_zonder_volledige_periode_geeft_streepje(kort_analyse):
+    from staat_mbo.analyse import bereken, kerncijfers
+
+    tegels = {t.naam: t for t in kerncijfers(bereken(kort_analyse))}
+    for naam in ("Diplomaresultaat", "Startersresultaat"):
+        assert tegels[naam].waarde == "–"
+        assert tegels[naam].getal is None
+        assert tegels[naam].ondertitel

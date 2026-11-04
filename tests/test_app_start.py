@@ -83,3 +83,23 @@ def test_elke_pagina_rendert_op_de_demodata_zonder_exception(demodata_analyse, p
     at.session_state[SESSIE_ANALYSE] = demodata_analyse
     at.run()
     assert not at.exception
+
+
+def test_start_toont_zes_kerncijfertegels_op_de_demodata(demodata_analyse):
+    at = _app()
+    at.session_state[SESSIE_ANALYSE] = demodata_analyse
+    at.run()
+    assert not at.exception
+    assert [m.value for m in at.metric] == [
+        "67,9%",
+        "68,9%",
+        "80,7%",
+        "226",
+        "16,4%",
+        "1,3%",
+    ]
+    assert any("Indicatief" in i.value for i in at.info)
+
+
+def test_start_zonder_analyse_toont_geen_kerncijfers():
+    assert not _app().run().metric
