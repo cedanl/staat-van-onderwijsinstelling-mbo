@@ -250,3 +250,134 @@ def rendement_per_groep(df: pl.DataFrame, per: list[str] | None = None) -> pl.Da
         )
         .sort(per)
     )
+
+
+## De negen uitkomsten van de loopbaanstatus, in vaste volgorde (ontwerp §5.5).
+CATEGORIEEN = [
+    "Diploma, verder op hoger niveau",
+    "Diploma, vertrokken",
+    "Diploma, nog ingeschreven op hetzelfde of lager niveau",
+    "Zonder diploma, zelfde opleiding",
+    "Zonder diploma, ander crebo op hetzelfde niveau",
+    "Zonder diploma, hoger niveau",
+    "Zonder diploma, lager niveau",
+    "Vertrokken zonder diploma",
+    "Nog niet waarneembaar",
+]
+
+
+def _stand_na(
+    cohorten: pl.DataFrame,
+    pm: pl.DataFrame,
+    dip: pl.DataFrame,
+    w: Waarneming,
+    k: int,
+) -> pl.DataFrame:
+    """Per cohortrij: waarneembaar, diploma sinds 1-10-t, en de inschrijving op 1-10-(t+k)."""
+    cohort = cohorten.with_columns(
+        (pl.col("Cohort") + k).alias("_j"),
+        pl.col("Cohort")
+        .map_elements(lambda t: w.reeks(t, t + k), return_dtype=pl.Boolean)
+        .alias("_zichtbaar"),
+    ).with_row_index("_r")
+    diploma = (
+        cohort.select("_r", _P, "Cohort")
+        .join(dip.select(_P, "Datum"), on=_P)
+        .filter(
+            (pl.col("Datum") >= pl.date(pl.col("Cohort"), 10, 1))
+            & (pl.col("Datum") < pl.date(pl.col("Cohort") + k, 10, 1))
+        )
+        .select("_r")
+        .unique()
+        .with_columns(pl.lit(True).alias("_diploma"))
+    )
+    stand = pm.select(
+        _P,
+        pl.col("Jaar").alias("_j"),
+        pl.col("Niveau").alias("_n"),
+        pl.col("Opleidingcode").alias("_c"),
+        pl.lit(True).alias("_aanwezig"),
+    )
+    return (
+        cohort.join(diploma, on="_r", how="left")
+        .join(stand, on=[_P, "_j"], how="left")
+        .with_columns(
+            pl.col("_diploma").fill_null(False),
+            pl.col("_aanwezig").fill_null(False),
+        )
+    )
+
+
+def loopbaanstatus(
+    cohorten: pl.DataFrame,
+    pm: pl.DataFrame,
+    dip: pl.DataFrame,
+    w: Waarneming,
+    k: int,
+    opvolgers: dict[str, str] | None = None,
+) -> pl.DataFrame:
+    """Loopbaanstatus na ``k`` jaar per cohortrij, één van [CATEGORIEEN].
+
+    Gemeten op 1-10-(t+k). Diploma: een mbo-diploma van welk niveau ook, van
+    1-10-t tot 1-10-(t+k). Stapelen, op- en afstromen zijn geen studiewissel;
+    alleen "Zonder diploma, ander crebo op hetzelfde niveau" is dat.
+    """
+    cohorten = canoniek(cohorten, opvolgers)
+    s = _stand_na(cohorten, canoniek(pm, opvolgers), dip, w, k)
+    niveau = pl.col("Niveau")
+    hoger = (pl.col("_n") > niveau).fill_null(False)
+    lager = (pl.col("_n") < niveau).fill_null(False)
+    status = (
+        pl.when(~pl.col("_zichtbaar"))
+        .then(pl.lit(CATEGORIEEN[8]))
+        .when(pl.col("_diploma") & pl.col("_aanwezig") & hoger)
+        .then(pl.lit(CATEGORIEEN[0]))
+        .when(pl.col("_diploma") & ~pl.col("_aanwezig"))
+        .then(pl.lit(CATEGORIEEN[1]))
+        .when(pl.col("_diploma"))
+        .then(pl.lit(CATEGORIEEN[2]))
+        .when(~pl.col("_aanwezig"))
+        .then(pl.lit(CATEGORIEEN[7]))
+        .when(pl.col("_c") == pl.col("Opleidingcode"))
+        .then(pl.lit(CATEGORIEEN[3]))
+        .when(hoger)
+        .then(pl.lit(CATEGORIEEN[5]))
+        .when(lager)
+        .then(pl.lit(CATEGORIEEN[6]))
+        .otherwise(pl.lit(CATEGORIEEN[4]))
+    )
+    return s.sort("_r").select(
+        *cohorten.columns,
+        pl.lit(k, dtype=pl.Int32).alias("Jaren"),
+        status.alias("Status"),
+    )
+
+
+def uitval(
+    cohorten: pl.DataFrame,
+    pm: pl.DataFrame,
+    dip: pl.DataFrame,
+    w: Waarneming,
+    x: int,
+    opvolgers: dict[str, str] | None = None,
+) -> pl.DataFrame:
+    """Uitval na ``x`` jaar per cohortrij: een status op 1-10-(t+x), geen cumulatief cijfer.
+
+    Uitgevallen: niet ingeschreven op 1-10-(t+x) en sinds 1-10-t geen
+    mbo-diploma (entree inbegrepen). Wie terugkomt is niet uitgevallen. Null als
+    de periode nog niet (volledig) waarneembaar is.
+
+    Het ontwerp noemt als venster het einde 30-9-(t+x-1); dat sluit het jaar
+    voor 1-10-(t+x) uit. Hier loopt het venster tot 30-9-(t+x), net als bij
+    de loopbaanstatus, zodat een diploma in dat jaar de student uit de uitval houdt.
+    """
+    cohorten = canoniek(cohorten, opvolgers)
+    s = _stand_na(cohorten, pm, dip, w, x)
+    uit = (
+        pl.when(~pl.col("_zichtbaar"))
+        .then(None)
+        .otherwise(~pl.col("_aanwezig") & ~pl.col("_diploma"))
+    )
+    return s.sort("_r").select(
+        *cohorten.columns, pl.lit(x, dtype=pl.Int32).alias("Jaren"), uit.alias("Uitval")
+    )
