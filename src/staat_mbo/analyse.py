@@ -92,6 +92,11 @@ def _opleidingen(star: dict[str, pl.DataFrame], kaart: dict[str, str]) -> pl.Dat
     return pl.concat([dim, erbij])
 
 
+def _jaren(w: Waarneming) -> list[int]:
+    """De 1 oktobers waarop we rekenen: binnen de dekking en niet in een gat."""
+    return [j for j in range(w.eerste_jaar, w.laatste_jaar + 1) if w.waarneembaar(j)]
+
+
 def _standaardduur_melding(pm: pl.DataFrame, duur: pl.DataFrame) -> list[Melding]:
     opleidingen = (
         pm.filter(
@@ -106,10 +111,11 @@ def _standaardduur_melding(pm: pl.DataFrame, duur: pl.DataFrame) -> list[Melding
     zonder = duur_per_opleiding(duur, opleidingen)["Duur_bron"].eq("standaard").sum()
     if not zonder:
         return []
+    werkwoord = "heeft" if zonder == 1 else "hebben"
     return [
         Melding(
             "info",
-            f"{zonder} van de {opleidingen.height} opleidingen (per leerweg) hebben "
+            f"{zonder} van de {opleidingen.height} crebo's per leerweg {werkwoord} "
             f"minder dan {MIN_INSCHRIJVINGEN_DUUR} inschrijvingen om de nominale duur "
             "uit de geplande einddatum te halen; daar geldt de standaardduur per "
             "niveau (1, 2, 3 of 4 jaar).",
@@ -133,6 +139,9 @@ def maak_analyse(invoer: list[Path], werkmap: Path) -> Analyse:
     except (InvoerFout, ValueError) as e:
         return Analyse(Stapelrapport([], [], [], 0, fouten=[str(e)]))
     pm, dip = peilmomenten(star), diplomas(star)
+    ## De samenvatting na "Gelukt" telt dezelfde jaren en studenten als de tegels.
+    rapport.schooljaren = _jaren(w)
+    rapport.aantal_studenten = pm.filter(pl.col("Jaar").is_in(_jaren(w)))[_P].n_unique()
     duur = nominale_duur(star)
     kaart = opvolgers(star)
     return Analyse(
@@ -266,8 +275,12 @@ def _loopbanen(a: Analyse, c: pl.DataFrame, r: pl.DataFrame) -> pl.DataFrame:
     }
     delen = [
         c.select(_COHORT)
-        .with_columns(pl.lit(moment).alias("Moment"), _status_na(a, c, k))
-        .group_by([*_COHORT, "Moment", "Status"])
+        .with_columns(
+            pl.lit(moment).alias("Moment"),
+            k.cast(pl.Int32).alias("Jaren"),
+            _status_na(a, c, k),
+        )
+        .group_by([*_COHORT, "Moment", "Jaren", "Status"])
         .len()
         .rename({"len": "Aantal"})
         for moment, k in jaren.items()
@@ -333,6 +346,7 @@ def bereken(a: Analyse) -> Resultaten:
                 "Niveau": pl.Int32,
                 "Leertraject": pl.Utf8,
                 "Moment": pl.Utf8,
+                "Jaren": pl.Int32,
                 "Status": pl.Utf8,
                 "Aantal": pl.UInt32,
             }
@@ -384,7 +398,6 @@ class Kerncijfer:
     waarde: str
     ondertitel: str
     help: str | None = None
-    getal: int | None = None
 
 
 def _getal(n: int) -> str:
@@ -399,35 +412,38 @@ def kerncijfers(a: Analyse) -> list[Kerncijfer]:
     1 oktobers, inschrijvingen, diploma's, opleidingen, BRIN's). Die staan op de
     pagina's met hun definitie erbij.
     """
-    pm, dip, w = a.peilmomenten, a.diplomas, a.waarneming
-    jaren = w.laatste_jaar - w.eerste_jaar + 1 - len(w.gaten)
-    gaten = f", zonder {', '.join(map(str, w.gaten))}" if w.gaten else ""
+    w = a.waarneming
+    ## Alleen de 1 oktobers waarop we rekenen; een RO noemt ook oudere
+    ## inschrijvingen, maar die jaren zijn niet volledig.
+    jaren = _jaren(w)
+    pm = a.peilmomenten.filter(pl.col("Jaar").is_in(jaren))
+    dip = a.diplomas.filter(pl.col("Datum") >= w.diplomas_vanaf)
+    binnen = [g for g in w.gaten if w.eerste_jaar < g < w.laatste_jaar]
+    gaten = f", zonder {', '.join(map(str, binnen))}" if binnen else ""
     laatste = pm.filter(pl.col("Jaar") == w.laatste_jaar)[_P].n_unique()
     crebos = canoniek(pm.drop_nulls("Opleidingcode"), a.opvolgers)["Opleidingcode"]
-    brins = sorted(pm["BRIN"].drop_nulls().unique().to_list())
+    brins = sorted(a.peilmomenten["BRIN"].drop_nulls().unique().to_list())
     studenten = pm[_P].n_unique()
     return [
         Kerncijfer(
             "Studenten",
             _getal(studenten),
-            "verschillende studenten in je bestanden",
-            "Iedereen die op minstens één 1 oktober ingeschreven stond, alle "
-            "niveaus en leerwegen.",
-            studenten,
+            "verschillende studenten op deze 1 oktobers",
+            "Iedereen die op minstens één van de 1 oktobers hiernaast ingeschreven "
+            "stond, alle niveaus en leerwegen.",
         ),
         Kerncijfer(
             "Schooljaren",
-            str(jaren),
+            str(len(jaren)),
             f"1 oktober {w.eerste_jaar} t/m {w.laatste_jaar}{gaten}",
-            "Het aantal 1 oktobers (peildata) dat in je bestanden staat.",
-            jaren,
+            "Het aantal 1 oktobers (peildata) dat je bestanden volledig dekken. "
+            "Daarop rekent het dashboard.",
         ),
         Kerncijfer(
             f"Ingeschreven op 1 oktober {w.laatste_jaar}",
             _getal(laatste),
             "studenten op de laatste peildatum",
             "Studenten met een inschrijving op de laatste 1 oktober in je bestanden.",
-            laatste,
         ),
         Kerncijfer(
             "Diploma's",
@@ -435,7 +451,6 @@ def kerncijfers(a: Analyse) -> list[Kerncijfer]:
             f"behaald vanaf {w.diplomas_vanaf:%d-%m-%Y}",
             "Alle mbo-diploma's in je bestanden, ook van studenten die er nog "
             "studeren.",
-            dip.height,
         ),
         Kerncijfer(
             "Opleidingen",
@@ -443,13 +458,11 @@ def kerncijfers(a: Analyse) -> list[Kerncijfer]:
             "crebo's; een vernieuwing telt als dezelfde",
             "Verschillende crebo's met een inschrijving. Een crebo-vernieuwing "
             "(opvolger) telt als dezelfde opleiding.",
-            crebos.n_unique(),
         ),
         Kerncijfer(
             "BRIN-nummers",
             str(len(brins)),
             ", ".join(brins) if len(brins) <= 3 else "samen één instelling",
             "Alle BRIN-nummers in je bestanden tellen samen als één instelling.",
-            len(brins),
         ),
     ]

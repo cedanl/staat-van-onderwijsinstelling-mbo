@@ -67,7 +67,10 @@ SR_ZIN = (
     "Startersresultaat: we kijken 4 jaar terug in plaats van 6. Wie 5-6 "
     "jaar geleden al eens bij je stond en terugkomt, telt als nieuwe student."
 )
-RENDEMENT_ZIN = "Rendement nominaal + 1 voor niveau 4 is pas te zien vanaf cohort 2020."
+RENDEMENT_ZIN = (
+    "Rendement nominaal + 1 voor niveau 4 (vier jaar plus één) is te zien voor "
+    "cohort 2020; latere cohorten lopen nog."
+)
 JR_ZIN = (
     "Jaarresultaat: nog geen driejaarscijfer. Je hebt 3 aaneengesloten "
     "1 oktobers, er zijn er minstens 4 nodig."

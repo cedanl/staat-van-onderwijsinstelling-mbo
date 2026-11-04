@@ -32,7 +32,7 @@ STAAT_KOLOMMEN = [
 
 
 def test_demo_samenvoegen(ingebouwde_sleutel, tmp_path):
-    invoer = [str(p) for p in sorted(RUW.iterdir())]
+    invoer = [str(p) for p in sorted(RUW.glob("*27DV*"))]
     code = main(["samenvoegen", *invoer, "--uitvoer", str(tmp_path)])
     assert code == 0
     assert (tmp_path / BESTAND_PEILMOMENTEN).exists()

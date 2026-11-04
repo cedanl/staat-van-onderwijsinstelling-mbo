@@ -187,8 +187,10 @@ def rendement(
     nominaal = pl.date(pl.col("Cohort") + pl.col("Duur"), 9, 30)
     plus_1 = pl.date(pl.col("Cohort") + pl.col("Duur") + 1, 9, 30)
     return (
-        cohort.join(zichtbaar, on=["Cohort", "Duur"], how="left")
-        .join(eerste, on="_r", how="left")
+        cohort.join(zichtbaar, on=["Cohort", "Duur"], how="left", maintain_order="left")
+        .join(eerste, on="_r", how="left", maintain_order="left")
+        ## Elke rij hoort bij dezelfde rij van ``cohorten`` (analyse leunt daarop).
+        .sort("_r")
         .with_columns(
             pl.when(pl.col("_n"))
             .then((pl.col("_eerste") <= nominaal).fill_null(False))

@@ -4,15 +4,30 @@ from staat_mbo.analyse import MOMENTEN, bereken, maak_analyse
 from tests.conftest import RUW
 
 
-def test_analyse_op_de_fixtures(ingebouwde_sleutel, tmp_path):
+def test_fixtures_zonder_gedeelde_1_oktober_zijn_niet_gelukt(
+    ingebouwde_sleutel, tmp_path
+):
+    # De fixtures zijn bewust een mengsel van BRIN's zonder gedeelde 1 oktober:
+    # dan valt er niets te berekenen, en dat zeggen we meteen.
     analyse = maak_analyse(sorted(RUW.iterdir()), tmp_path)
-    assert analyse.ok and analyse.rapport.ok
+    assert not analyse.ok
+    assert analyse.regels()[0] == "Niet gelukt."
+    assert "geen 1 oktober gemeen" in analyse.regels()[1]
+
+
+def test_een_echte_ro_met_oude_inschrijvingen(ingebouwde_sleutel, tmp_path):
+    """Een RO noemt ook inschrijvingen van vóór zijn periode; die jaren tellen niet."""
+    from staat_mbo.analyse import kerncijfers
+
+    analyse = maak_analyse(sorted(RUW.glob("RO_27DV*")), tmp_path)
+    assert analyse.ok
     assert not analyse.peilmomenten.is_empty()
     assert not analyse.diplomas.is_empty()
-    assert analyse.regels()[0].startswith("Gelukt")
-    # De fixtures zijn bewust een mengsel van BRIN's zonder gedeelde 1 oktober:
-    # er is dan geen waarneembaar jaar, en de berekening geeft lege tabellen.
-    assert bereken(analyse).studiesucces.is_empty()
+    tegels = {t.naam: t for t in kerncijfers(analyse)}
+    ## De samenvatting na "Gelukt" en de tegel noemen hetzelfde aantal jaren.
+    regel = next(r for r in analyse.regels() if r.startswith("Schooljaren"))
+    assert regel.endswith(f"({tegels['Schooljaren'].waarde} jaar)")
+    assert regel.startswith("Schooljaren: 2024")
 
 
 def test_demodata_heeft_waarneembare_jaren(demodata_analyse):
@@ -31,7 +46,7 @@ def test_kapot_bestand_geeft_fouttekst(ingebouwde_sleutel, tmp_path):
 
 
 def test_regels_bevatten_historiemeldingen(ingebouwde_sleutel, tmp_path):
-    analyse = maak_analyse(sorted(RUW.iterdir()), tmp_path)
+    analyse = maak_analyse(sorted(RUW.glob("RO_27DV*")), tmp_path)
     tekst = "\n".join(analyse.regels())
     assert "Rendement nominaal + 1" in tekst
 
@@ -87,4 +102,13 @@ def test_kerncijfers_van_een_korte_reeks(kort_analyse):
     from staat_mbo.analyse import kerncijfers
 
     tegels = {t.naam: t for t in kerncijfers(kort_analyse)}
-    assert tegels["Schooljaren"].getal == 6
+    assert tegels["Schooljaren"].waarde == "6"
+
+
+def test_loopbanen_noemen_het_aantal_jaren_per_moment(demodata_analyse):
+    lb = bereken(demodata_analyse).loopbanen
+    assert set(lb.filter(pl.col("Moment") == "na 1 jaar")["Jaren"]) == {1}
+    duur = lb.filter(pl.col("Moment") == "na nominale duur")
+    plus = lb.filter(pl.col("Moment") == "na nominale duur + 1")
+    assert set(duur["Jaren"]) <= {1, 2, 3, 4}
+    assert min(plus["Jaren"]) == min(duur["Jaren"]) + 1

@@ -12,7 +12,7 @@ uv run --group demo python demo-video/scenes/record.py      # opname (poort via 
 uv run python demo-video/stitch.py                          # knippen, ondertitels erbij, wachttijd eruit
 ```
 
-Het resultaat is `demo-video/demo_final.mp4` (niet in git). `ffmpeg` moet in je pad staan. Raakt een kader, chip of pijl een ander element, dan stopt de opname met een fout; pas dan het element of de ruimte aan in `scenes/record.py`. Met `STAAT_MBO_SHOTS=<map> STAAT_MBO_DROOG=1` maak je snel een screenshot per stap om te controleren.
+Het resultaat is `demo-video/demo_final.mp4` (niet in git). `ffmpeg` moet in je pad staan. De ondertitels gebruiken Segoe UI Bold van Windows; op een Mac of Linux geef je een ander lettertype op met `STAAT_MBO_LETTER=<pad naar .ttf>`. Raakt een kader, chip of pijl een ander element, dan stopt de opname met een fout; pas dan het element of de ruimte aan in `scenes/record.py`. Met `STAAT_MBO_SHOTS=<map> STAAT_MBO_DROOG=1` maak je snel een screenshot per stap om te controleren.
 
 Zet de video in de README via github.com: bewerk `README.md`, sleep `demo_final.mp4` op de plek van de TODO-opmerking bovenaan en sla op. GitHub maakt er een link van die in de README afspeelt. De video zelf komt niet in git.
 

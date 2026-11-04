@@ -278,7 +278,7 @@ Streamlit, `layout="wide"`, `st.navigation` in de zijbalk, zoals de v4-app. Graf
    - Uitval na 1 jaar en na de nominale duur.
    - Tabel per opleiding met de nominale duur en of die "uit de geplande einddatum" of de "standaardduur" komt.
 4. **Loopbanen (stapelen).**
-   - Per cohort en niveau een 100%-staaf van de loopbaanstatus na 1, 2 en 3 jaar (9 categorieën, vaste kleuren).
+   - Per cohort en niveau een 100%-staaf van de loopbaanstatus na 1 jaar, na de nominale duur en na de nominale duur + 1 (9 categorieën, vaste kleuren). Vaste jaren (1, 2, 3) werken niet: na 1 jaar heeft alleen entree een diploma.
    - Een matrix van het niveau op 1-10-t naar het niveau op 1-10-(t+1) (n1 → n2 enz.), met en zonder diploma.
    - Een korte tekst per categorie.
 5. **Over de cijfers.**

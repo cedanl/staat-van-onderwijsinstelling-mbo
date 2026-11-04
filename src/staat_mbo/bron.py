@@ -136,10 +136,11 @@ def _verwerk(bestanden: list[Path], werkmap: Path) -> dict[str, pl.DataFrame]:
         except KwaliteitsFout as e:
             fouten = _kwaliteitsfouten(doel)
             reden = "; ".join(fouten[:3]) if fouten else _eerste_regel(e)
+            soort = "RO" if detect_bestandstype(b) == "ro" else "TBG-i-bestand"
             raise InvoerFout(
                 f"{b.name}: de kwaliteitscontrole keurt dit bestand af. Reden: "
                 f"{reden}. Is het bestand bewerkt of afgebroken? Vraag dan een "
-                "nieuwe RO aan bij DUO."
+                f"nieuw {soort} aan bij DUO."
             ) from e
         except ValueError as e:
             raise InvoerFout(
@@ -150,8 +151,10 @@ def _verwerk(bestanden: list[Path], werkmap: Path) -> dict[str, pl.DataFrame]:
     try:
         run_star(brondata, werkmap / "star", scenario="smbo")
     except (KwaliteitsFout, ValueError) as e:
+        fouten = _kwaliteitsfouten(werkmap / "star")
+        reden = "; ".join(fouten[:3]) if fouten else _eerste_regel(e)
         raise InvoerFout(
-            f"Samenvoegen mislukt bij de kwaliteitscontrole. {_eerste_regel(e)}"
+            f"Samenvoegen mislukt bij de kwaliteitscontrole. Reden: {reden}."
         ) from e
     return _lees_parquet(sorted((werkmap / "star" / "datamodel").glob("*.parquet")))
 
@@ -168,6 +171,13 @@ def laad_star(invoer: list[Path], werkmap: Path) -> dict[str, pl.DataFrame]:
     bestanden = _bestanden(invoer, werkmap)
     if not bestanden:
         raise InvoerFout("Geen bestanden gevonden.")
-    if any(b.suffix.lower() == ".parquet" for b in bestanden):
-        return _lees_parquet(bestanden)
+    parquet = [b for b in bestanden if b.suffix.lower() == ".parquet"]
+    if any(b.stem in VEREISTE_TABELLEN for b in parquet):
+        return _lees_parquet(parquet)
+    if parquet:
+        raise InvoerFout(
+            f"{parquet[0].name}: dit is geen RO, TBG-i of datamodel van "
+            "mbo-bekostiging-bestanden. Upload de ruwe RO-bestanden, of de map "
+            "datamodel."
+        )
     return _bouw_star(bestanden, werkmap)

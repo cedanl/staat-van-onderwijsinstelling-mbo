@@ -61,7 +61,7 @@ Na **Samenvoegen** zie je **Gelukt** of **Niet gelukt**, met de reden. De meest 
 - **De kwaliteitscontrole keurt een bestand af.** De melding noemt het bestand en de reden, bijvoorbeeld dat de aantallen in de laatste regel (SLR) niet kloppen. Meestal is het bestand bewerkt of niet helemaal gedownload. Vraag dan een nieuwe RO aan bij DUO.
 - **Onbekend bestand.** De naam moet beginnen met `RO_` of `TBGI_`, zoals DUO hem levert. Hernoem de bestanden niet.
 - **Het datamodel is niet compleet of te oud.** Maak het datamodel opnieuw met de nieuwste versie van mbo-bekostiging-bestanden, of upload de ruwe RO's.
-- **Let op: een BRIN begint later of houdt eerder op.** Bij meerdere BRIN's rekenen we alleen over de 1 oktobers die alle BRIN's dekken. Eén BRIN met een korte reeks maakt dus alles kort. Upload voor elke BRIN dezelfde jaren, of laat die BRIN weg.
+- **Let op: een BRIN begint later of houdt eerder op.** Bij meerdere BRIN's rekenen we alleen over de 1 oktobers die alle BRIN's dekken. Eén BRIN met een korte reeks maakt dus alles kort. Upload voor elke BRIN dezelfde jaren, of laat die BRIN weg. Hebben de BRIN's helemaal geen 1 oktober gemeen, dan krijg je **Niet gelukt**.
 
 ## Zonder scherm (voor automatisering)
 
@@ -70,7 +70,7 @@ smbo samenvoegen <bestanden of map> --uitvoer <map>     # tussenlaag (parquet) e
 smbo staat <bestanden of map> --uitvoer <map>           # studiesucces.csv, cohorten.csv en loopbanen.csv
 ```
 
-Exitcode 0 betekent gelukt. Heb je de bestanden al verwerkt met [mbo-bekostiging-bestanden](https://github.com/cedanl/mbo-bekostiging-bestanden)? Geef dan de map `datamodel` (of de zip) op in plaats van de ruwe bestanden. Dat werkt ook in het dashboard.
+Exitcode 0 betekent gelukt. In `loopbanen.csv` staat per rij het moment (`na 1 jaar`, `na nominale duur`, `na nominale duur + 1`) en na hoeveel jaar dat is (`Jaren`). Heb je de bestanden al verwerkt met [mbo-bekostiging-bestanden](https://github.com/cedanl/mbo-bekostiging-bestanden)? Geef dan de map `datamodel` (of de zip) op in plaats van de ruwe bestanden. Dat werkt ook in het dashboard.
 
 ## Goed om te weten
 

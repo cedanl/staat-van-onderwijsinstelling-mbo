@@ -129,7 +129,7 @@ CHIPS = {
     "brin": ("BRIN-nummers", "Samen één instelling.", "blauw"),
     "indicatoren": (
         "Regeling studiesucces",
-        "Driejaarscijfers over 2022-23 t/m 2024-25.",
+        "Driejaarscijfers 2022-2023 t/m 2024-2025.",
         "blauw",
     ),
     "tabel": (

@@ -5,7 +5,7 @@ from datetime import date
 
 import polars as pl
 
-from staat_mbo.stapelcontrole import gaten
+from staat_mbo.stapelcontrole import eerste_1_oktober, gaten
 
 
 @dataclass
@@ -24,11 +24,6 @@ class Waarneming:
     def reeks(self, van: int, tot: int) -> bool:
         """Zijn alle 1 oktobers van ``van`` t/m ``tot`` waarneembaar?"""
         return all(self.waarneembaar(j) for j in range(van, tot + 1))
-
-
-def _eerste_1_oktober(datum: date) -> int:
-    """Jaar van de eerste 1 oktober op of na ``datum``."""
-    return datum.year if datum <= date(datum.year, 10, 1) else datum.year + 1
 
 
 def _gatjaren(leveringen: pl.DataFrame) -> list[int]:
@@ -60,7 +55,7 @@ def waarneming(star: dict[str, pl.DataFrame]) -> Waarneming:
         .drop_nulls()
     )
     return Waarneming(
-        eerste_jaar=max(_eerste_1_oktober(d) for d in begin["DatumBeginPeriode"]),
+        eerste_jaar=max(eerste_1_oktober(d) for d in begin["DatumBeginPeriode"]),
         laatste_jaar=min(d.year for d in einde["Laatste_peildatum"]),
         diplomas_vanaf=ro["DatumBeginPeriode"].min(),
         gaten=_gatjaren(meta),

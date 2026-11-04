@@ -8,6 +8,7 @@ Aanroep: uv run python demo-video/stitch.py
 """
 
 import json
+import os
 import subprocess
 import sys
 import textwrap
@@ -23,7 +24,8 @@ NA_STAP = 0.6  # seconden na de leestijd die in beeld blijven (klik, begin van l
 VOOR_STAP = 1.0  # seconden vóór de volgende stap
 EINDE = 2.0
 BALK = 120  # hoogte van de ondertitelbalk onder het beeld
-LETTER = r"C\:/Windows/Fonts/segoeuib.ttf"
+## Lettertype voor de ondertitels; standaard Segoe UI Bold van Windows.
+LETTER = os.environ.get("STAAT_MBO_LETTER", r"C\:/Windows/Fonts/segoeuib.ttf")
 ONDERTITEL = dict(STAPPEN)
 
 

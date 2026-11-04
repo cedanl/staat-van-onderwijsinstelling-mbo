@@ -117,3 +117,12 @@ def test_afgekeurd_bestand_noemt_de_reden(ingebouwde_sleutel, tmp_path):
     with pytest.raises(InvoerFout, match="Reden: .*SLR") as fout:
         laad_star([kapot], tmp_path / "werk")
     assert "quality.json" not in str(fout.value)
+
+
+def test_los_parquet_zonder_datamodel_geeft_eigen_melding(tmp_path):
+    import polars as pl
+
+    los = tmp_path / "peilmomenten.parquet"
+    pl.DataFrame({"a": [1]}).write_parquet(los)
+    with pytest.raises(InvoerFout, match="geen RO, TBG-i of datamodel"):
+        laad_star([los], tmp_path / "werk")

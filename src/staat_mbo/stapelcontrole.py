@@ -31,7 +31,7 @@ class Stapelrapport:
             "Gelukt: de bestanden zijn samengevoegd tot één bestand.",
             f"Instellingen (BRIN): {', '.join(self.brins)}",
             f"Schooljaren: {jaren} ({len(self.schooljaren)} jaar)",
-            f"Studenten: {self.aantal_studenten}",
+            f"Studenten: {self.aantal_studenten:,}".replace(",", "."),
             *(f"Let op: {w}" for w in self.waarschuwingen),
         ]
 
@@ -74,15 +74,16 @@ def _ongelijk_einde(leveringen: pl.DataFrame) -> list[str]:
     laatste = einde["Laatste_peildatum"].max()
     tot = einde["Laatste_peildatum"].min().year
     return [
-        f"de bestanden van {brin} lopen tot {datum:%d-%m-%Y}, de rest tot "
-        f"{laatste:%d-%m-%Y}; we rekenen tot {tot}, het vroegste einde. Upload "
+        f"de bestanden van {brin} lopen tot {datum:%d-%m-%Y}, de laatste BRIN "
+        f"tot {laatste:%d-%m-%Y}; we rekenen tot {tot}, het vroegste einde. Upload "
         "ook de nieuwste RO van deze BRIN voor latere jaren."
         for brin, datum in einde.iter_rows()
         if datum < laatste
     ]
 
 
-def _eerste_1_oktober(datum: date) -> int:
+def eerste_1_oktober(datum: date) -> int:
+    """Jaar van de eerste 1 oktober op of na ``datum``."""
     return datum.year if datum <= date(datum.year, 10, 1) else datum.year + 1
 
 
@@ -94,7 +95,7 @@ def _beginjaren(leveringen: pl.DataFrame) -> dict[str, int]:
         .agg(pl.col("DatumBeginPeriode").min())
         .sort("BRIN")
     )
-    return {b: _eerste_1_oktober(d) for b, d in begin.iter_rows()}
+    return {b: eerste_1_oktober(d) for b, d in begin.iter_rows()}
 
 
 def _ongelijk_begin(leveringen: pl.DataFrame) -> list[str]:
@@ -108,8 +109,9 @@ def _ongelijk_begin(leveringen: pl.DataFrame) -> list[str]:
         return []
     vanaf, vroegst = max(jaren.values()), min(jaren.values())
     return [
-        f"de bestanden van {brin} beginnen pas op 1 oktober {jaar}, de rest op "
-        f"1 oktober {vroegst}; we rekenen vanaf {vanaf}, het laatste begin. Upload "
+        f"de bestanden van {brin} beginnen pas op 1 oktober {jaar}, de vroegste "
+        f"BRIN op 1 oktober {vroegst}; we rekenen vanaf {vanaf}, het laatste begin. "
+        "Upload "
         "ook de oudere RO's van deze BRIN, of laat deze BRIN weg voor een langere "
         "reeks."
         for brin, jaar in jaren.items()
@@ -132,7 +134,7 @@ def _geen_gedeelde_jaren(leveringen: pl.DataFrame) -> list[str]:
         return []
     return [
         (
-            "de BRIN's hebben geen 1 oktober gemeen, dus er valt niets te berekenen. "
+            "De BRIN's hebben geen 1 oktober gemeen, dus er valt niets te berekenen. "
             "Upload voor elke BRIN dezelfde schooljaren, of upload de BRIN's apart."
         )
     ]
@@ -160,7 +162,9 @@ def controleer_stapel(star: dict[str, pl.DataFrame]) -> Stapelrapport:
             "rendement en uitval rond dit gat zijn onbetrouwbaar."
         )
     meta = star["meta_leveringen"]
-    rapport.waarschuwingen += _geen_gedeelde_jaren(meta)
+    rapport.fouten += _geen_gedeelde_jaren(meta)
+    if not rapport.ok:
+        return rapport
     rapport.waarschuwingen += _ongelijk_begin(meta)
     rapport.waarschuwingen += _ongelijk_einde(meta)
     if len(namen) > 1:
