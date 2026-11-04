@@ -151,9 +151,15 @@ def filters(analyse: Analyse) -> Filters:
     return Filters(tuple(niveaus), tuple(leerwegen), tuple(domein), tuple(gekozen))
 
 
-def filter_toepassen(df: pl.DataFrame, f: Filters, analyse: Analyse) -> pl.DataFrame:
-    """Pas de filters uit de zijbalk toe op een tabel met crebo, niveau en leerweg."""
-    return toepassen(df, f, analyse.opleidingen)
+def filter_toepassen(
+    df: pl.DataFrame, f: Filters, analyse: Analyse, nieuwste_crebo: bool = False
+) -> pl.DataFrame:
+    """Pas de filters uit de zijbalk toe op een tabel met crebo, niveau en leerweg.
+
+    ``nieuwste_crebo``: de tabel telt per nieuwste crebo (cohorten, loopbanen).
+    """
+    kaart = analyse.opvolgers if nieuwste_crebo else None
+    return toepassen(df, f, analyse.opleidingen, kaart)
 
 
 def toon_tabel(df: pl.DataFrame, bestandsnaam: str, **kolommen) -> None:

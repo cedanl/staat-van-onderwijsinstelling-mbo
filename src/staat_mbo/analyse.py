@@ -65,8 +65,13 @@ class Analyse:
         ]
 
 
-def _opleidingen(star: dict[str, pl.DataFrame]) -> pl.DataFrame:
-    return (
+def _opleidingen(star: dict[str, pl.DataFrame], kaart: dict[str, str]) -> pl.DataFrame:
+    """Naam en domein per crebo, ook voor opvolgers die zelf geen rij hebben.
+
+    Een opvolger zonder eigen rij in ``dim_opleiding`` krijgt de naam en het
+    domein van zijn voorganger, zodat de pagina's geen kale crebo's tonen.
+    """
+    dim = (
         star["dim_opleiding"]
         .select(
             pl.col("Opleidingcode").cast(pl.Utf8),
@@ -75,6 +80,14 @@ def _opleidingen(star: dict[str, pl.DataFrame]) -> pl.DataFrame:
         )
         .unique("Opleidingcode", keep="first", maintain_order=True)
     )
+    bekend = set(dim["Opleidingcode"])
+    erbij = (
+        dim.filter(pl.col("Opleidingcode").is_in(list(kaart)))
+        .with_columns(pl.col("Opleidingcode").replace(kaart))
+        .filter(~pl.col("Opleidingcode").is_in(list(bekend)))
+        .unique("Opleidingcode", keep="last", maintain_order=True)
+    )
+    return pl.concat([dim, erbij])
 
 
 def _standaardduur_melding(pm: pl.DataFrame, duur: pl.DataFrame) -> list[Melding]:
@@ -119,14 +132,15 @@ def maak_analyse(invoer: list[Path], werkmap: Path) -> Analyse:
         return Analyse(Stapelrapport([], [], [], 0, fouten=[str(e)]))
     pm, dip = peilmomenten(star), diplomas(star)
     duur = nominale_duur(star)
+    kaart = opvolgers(star)
     return Analyse(
         rapport=rapport,
         waarneming=w,
         peilmomenten=pm,
         diplomas=dip,
         duur=duur,
-        opvolgers=opvolgers(star),
-        opleidingen=_opleidingen(star),
+        opvolgers=kaart,
+        opleidingen=_opleidingen(star, kaart),
         meldingen=[*meldingen(w), *_standaardduur_melding(pm, duur)],
         sleutel=str(
             hash((pm.hash_rows().sum(), dip.hash_rows().sum(), pm.height, dip.height))

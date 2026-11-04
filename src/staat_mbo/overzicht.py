@@ -45,8 +45,17 @@ class Filters:
         return any((self.niveaus, self.leerwegen, self.domeinen, self.opleidingen))
 
 
-def toepassen(df: pl.DataFrame, f: Filters, opleidingen: pl.DataFrame) -> pl.DataFrame:
-    """Filter een tabel met ``Opleidingcode``, ``Niveau`` en ``Leertraject``."""
+def toepassen(
+    df: pl.DataFrame,
+    f: Filters,
+    opleidingen: pl.DataFrame,
+    opvolgers: dict[str, str] | None = None,
+) -> pl.DataFrame:
+    """Filter een tabel met ``Opleidingcode``, ``Niveau`` en ``Leertraject``.
+
+    Telt de tabel met het nieuwste crebo (cohorten en loopbanen), geef dan
+    ``opvolgers`` mee: een gekozen crebo selecteert dan ook zijn opvolger.
+    """
     if f.niveaus:
         df = df.filter(pl.col("Niveau").is_in(f.niveaus))
     if f.leerwegen:
@@ -57,7 +66,11 @@ def toepassen(df: pl.DataFrame, f: Filters, opleidingen: pl.DataFrame) -> pl.Dat
         ]
         df = df.filter(pl.col("Opleidingcode").is_in(codes.to_list()))
     if f.opleidingen:
-        df = df.filter(pl.col("Opleidingcode").is_in(f.opleidingen))
+        gekozen = {
+            *f.opleidingen,
+            *((opvolgers or {}).get(c, c) for c in f.opleidingen),
+        }
+        df = df.filter(pl.col("Opleidingcode").is_in(list(gekozen)))
     return df
 
 
