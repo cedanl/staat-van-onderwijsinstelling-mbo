@@ -8,6 +8,12 @@ staat in ``staat_mbo.palet.THEMA`` en gaat via ``smbo dashboard`` als
 from pathlib import Path
 
 import altair as alt
+
+## Altair kijkt in sys.modules of pandas er al is. Importeert een andere
+## sessie pandas op dat moment nog, dan ziet Altair een half geladen module
+## (AttributeError: partially initialized module 'pandas'). Een gewone import
+## vooraf wacht op de importlock en voorkomt dat.
+import pandas  # noqa: F401
 import streamlit as st
 
 from staat_mbo import palet
