@@ -1,4 +1,4 @@
-"""Neem de demovideo op: upload, meldingen, kerncijfers, Studiesucces, Cohorten, Loopbanen, Over.
+"""Neem de demovideo op: upload, meldingen, tellingen op Start, Studiesucces, Cohorten, Loopbanen, Over.
 
 Start eerst de app zonder --invoer (zie demo-video/README.md), dan:
     uv run --group demo python demo-video/scenes/record.py
@@ -25,7 +25,8 @@ RAW = Path(__file__).parent
 _spec = importlib.util.spec_from_file_location("stappen", DEMO / "stappen.py")
 _stappen = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_stappen)
-CHIPS, WAARDEN = _stappen.CHIPS, _stappen.WAARDEN
+CHIPS, WAARDEN, STUDIESUCCES = _stappen.CHIPS, _stappen.WAARDEN, _stappen.STUDIESUCCES
+DUREN = {naam: _stappen.leestijd(sub) for naam, sub in _stappen.STAPPEN}
 
 APP_URL = f"http://127.0.0.1:{os.environ.get('STAAT_MBO_POORT', '8599')}"
 VIEWPORT = {"width": 1600, "height": 900}
@@ -42,7 +43,6 @@ INIT_JS = (
     "const s=document.createElement('style');"
     f"s.textContent={json.dumps(STIJL)};document.head.appendChild(s);}});"
 )
-DUREN = json.loads((DEMO / "audio" / "duren.json").read_text())
 RING_JS = (RAW / "ring.js").read_text(encoding="utf-8")
 LEEG_JS = "() => document.querySelectorAll('.__a,.__ruimte').forEach(e => e.remove())"
 ## Lege ruimte onderaan de pagina, zodat een element hoog in beeld kan staan en de chip eronder past.
@@ -109,7 +109,7 @@ class Opname:
         self.tijden = {}
 
     def stap(self, naam, target, voor=None, actie=None, pad=4, rand=3, scrollen=True):
-        """Kader, pijl en chip bij het element; houd vast zolang de voice-over duurt."""
+        """Kader, pijl en chip bij het element; houd vast zolang de ondertitel leestijd nodig heeft."""
         locs = target if isinstance(target, list) else [target]
         if voor:
             voor()
@@ -172,7 +172,7 @@ def naar_pagina(page, naam):
 
 
 def tegels(page):
-    """De zes kerncijfers op Start (kolom met metric en toelichting), op volgorde."""
+    """De zes tegels op Start (kolom met metric en toelichting), op volgorde."""
     kol = page.locator(f"{HOOFD} [data-testid='stColumn']").filter(
         has=page.locator("[data-testid='stMetric']")
     )
@@ -180,11 +180,11 @@ def tegels(page):
     return [kol.nth(i) for i in range(6)]
 
 
-def controleer_waarde(naam, tegel):
+def controleer_waarde(naam, tegel, waarden=WAARDEN):
     """Tekst en beeld moeten kloppen: de waarde uit het script staat echt op de pagina."""
     tekst = tegel.get_by_test_id("stMetric").inner_text()
-    if WAARDEN[naam] not in tekst:
-        raise RuntimeError(f"{naam}: verwacht {WAARDEN[naam]}, op de pagina: {tekst!r}")
+    if waarden[naam] not in tekst:
+        raise RuntimeError(f"{naam}: verwacht {waarden[naam]}, op de pagina: {tekst!r}")
 
 
 def niveaufilter(page):
@@ -231,7 +231,7 @@ def neem_op(page):
     knop = page.get_by_role("button", name="Samenvoegen")
     o.stap("samenvoegen", knop, actie=lambda: klik(page, knop))
     page.get_by_text("Gelukt").first.wait_for(timeout=180000)
-    page.get_by_text("Kerncijfers").first.wait_for(timeout=180000)
+    page.get_by_text("In je bestanden").first.wait_for(timeout=180000)
     rustig(page)
     alerts = hoofd.get_by_test_id("stAlert")
     o.stap(
@@ -242,7 +242,7 @@ def neem_op(page):
 
     kaarten = tegels(page)
     for i, naam in enumerate(
-        ("jaar", "diploma", "starters", "instroom", "uitval", "doorstroom")
+        ("studenten", "schooljaren", "ingeschreven", "diplomas", "opleidingen", "brin")
     ):
         controleer_waarde(naam, kaarten[i])
         o.stap(naam, kaarten[i], pad=2, rand=3)
@@ -251,7 +251,7 @@ def neem_op(page):
     grafieken = hoofd.get_by_test_id("stVegaLiteChart")
     kaarten = tegels_studiesucces(page)
     for naam, tegel in zip(("jaar", "diploma", "starters"), kaarten, strict=True):
-        controleer_waarde(naam, tegel)
+        controleer_waarde(naam, tegel, STUDIESUCCES)
     o.stap("indicatoren", kaarten, pad=2)
     o.stap("tabel", hoofd.get_by_test_id("stDataFrame").first)
     o.stap(

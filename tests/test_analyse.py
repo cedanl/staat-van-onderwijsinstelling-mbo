@@ -61,35 +61,30 @@ def test_uitval_en_status_hebben_een_rij_per_cohortrij(demodata_analyse):
     assert per_k["Aantal"][0] == r.instroom["Aantal"].sum()
 
 
-def test_kerncijfers_op_de_demodata(demodata_analyse):
-    from staat_mbo.analyse import bereken, kerncijfers
+def test_kerncijfers_zijn_tellingen_over_de_bestanden(demodata_analyse):
+    from staat_mbo.analyse import kerncijfers
 
-    tegels = {t.naam: t for t in kerncijfers(bereken(demodata_analyse))}
+    tegels = {t.naam: t for t in kerncijfers(demodata_analyse)}
     assert list(tegels) == [
-        "Jaarresultaat",
-        "Diplomaresultaat",
-        "Startersresultaat",
-        "Instroom",
-        "Uitval na 1 jaar",
-        "Doorstroom na diploma",
+        "Studenten",
+        "Schooljaren",
+        "Ingeschreven op 1 oktober 2025",
+        "Diploma's",
+        "Opleidingen",
+        "BRIN-nummers",
     ]
-    assert tegels["Jaarresultaat"].waarde == "67,9%"
-    assert tegels["Diplomaresultaat"].waarde == "68,9%"
-    assert tegels["Startersresultaat"].waarde == "80,7%"
-    assert "2022-2023 t/m 2024-2025" in tegels["Jaarresultaat"].ondertitel
-    assert tegels["Instroom"].getal == 226
-    assert "2025" in tegels["Instroom"].ondertitel
-    assert tegels["Uitval na 1 jaar"].waarde == "16,4%"
-    assert "2024" in tegels["Uitval na 1 jaar"].ondertitel
-    assert tegels["Doorstroom na diploma"].waarde == "22,5%"
+    assert tegels["Studenten"].waarde == "1.743"
+    assert tegels["Schooljaren"].waarde == "10"
+    assert tegels["Schooljaren"].ondertitel == "1 oktober 2016 t/m 2025"
+    assert tegels["Ingeschreven op 1 oktober 2025"].waarde == "564"
+    assert tegels["Diploma's"].waarde == "953"
+    assert tegels["Opleidingen"].waarde == "11"
+    assert tegels["BRIN-nummers"].ondertitel == "27DV"
     assert all(t.help for t in tegels.values())
 
 
-def test_kerncijfers_zonder_volledige_periode_geeft_streepje(kort_analyse):
-    from staat_mbo.analyse import bereken, kerncijfers
+def test_kerncijfers_van_een_korte_reeks(kort_analyse):
+    from staat_mbo.analyse import kerncijfers
 
-    tegels = {t.naam: t for t in kerncijfers(bereken(kort_analyse))}
-    for naam in ("Diplomaresultaat", "Startersresultaat"):
-        assert tegels[naam].waarde == "–"
-        assert tegels[naam].getal is None
-        assert tegels[naam].ondertitel
+    tegels = {t.naam: t for t in kerncijfers(kort_analyse)}
+    assert tegels["Schooljaren"].getal == 6

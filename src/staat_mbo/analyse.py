@@ -16,9 +16,7 @@ from mbo_bekostiging_bestanden.waardenlijsten import (
 import staat_mbo
 from staat_mbo import cohorten as coh
 from staat_mbo import indicatoren as ind
-from staat_mbo import overzicht as ov
 from staat_mbo.bron import InvoerFout, laad_star
-from staat_mbo.definities import CATEGORIE_TOELICHTING, DEFINITIES
 from staat_mbo.duur import (
     MIN_INSCHRIJVINGEN_DUUR,
     duur_per_opleiding,
@@ -362,123 +360,72 @@ class Kerncijfer:
     waarde: str
     ondertitel: str
     help: str | None = None
-    getal: float | None = None
+    getal: int | None = None
 
 
-def _driejaar(r: Resultaten, indicator: str) -> tuple[float, str] | str:
-    """Laatste volledige driejaarscijfer van de instelling, of de reden zonder."""
-    d = r.studiesucces.filter(
-        (pl.col("Groep") == "instelling") & (pl.col("Indicator") == indicator)
-    )
-    if d.is_empty():
-        return "nog geen driejaarscijfer: te weinig waarneembare jaren"
-    volledig = d.filter(pl.col("Volledig") & pl.col("Percentage").is_not_null())
-    if volledig.is_empty():
-        return "geen volledige periode (onvolledig of te weinig studenten)"
-    rij = volledig.sort("Jaartijdvak").row(-1, named=True)
-    return rij["Percentage"], rij["Periode"]
+def _getal(n: int) -> str:
+    """Getal met een punt per duizendtal: ``1743`` wordt ``"1.743"``."""
+    return f"{n:,}".replace(",", ".")
 
 
-def _tegel_driejaar(r: Resultaten, naam: str, sleutel: str) -> Kerncijfer:
-    uit = _driejaar(r, sleutel.upper())
-    if isinstance(uit, str):
-        return Kerncijfer(naam, ov.pct(None), uit, DEFINITIES[sleutel])
-    waarde, periode = uit
-    return Kerncijfer(
-        naam, ov.pct(waarde), f"driejaarscijfer {periode}", DEFINITIES[sleutel], waarde
-    )
+def kerncijfers(a: Analyse) -> list[Kerncijfer]:
+    """Zes tellingen over je bestanden, zonder definitiekeuzes.
 
-
-def _tegel_instroom(r: Resultaten) -> Kerncijfer:
-    hulp = DEFINITIES["instroomcohort"]
-    instroom = r.instroom.group_by("Cohort").agg(pl.col("Aantal").sum()).sort("Cohort")
-    if instroom.is_empty():
-        return Kerncijfer("Instroom", "–", "geen instroomcohort", hulp)
-    cohort, n = instroom.row(-1)
-    return Kerncijfer(
-        "Instroom", str(n), f"instroomcohort {cohort}, studenten", hulp, n
-    )
-
-
-def _tegel_uitval(r: Resultaten) -> Kerncijfer:
-    naam, hulp = "Uitval na 1 jaar", DEFINITIES["uitval"]
-    bekend = (
-        ov.rendement_aggregeer(r.cohorten, ["Cohort"])
-        .filter((pl.col("N_uitval_1") == pl.col("Instroom")) & (pl.col("Instroom") > 0))
-        .sort("Cohort")
-        if not r.cohorten.is_empty()
-        else r.cohorten
-    )
-    if bekend.is_empty():
-        return Kerncijfer(
-            naam, "–", "nog geen cohort waarvan dit na 1 jaar bekend is", hulp
-        )
-    rij = bekend.row(-1, named=True)
-    return Kerncijfer(
-        naam,
-        ov.pct(rij["Uitval_1_percentage"]),
-        f"instroomcohort {rij['Cohort']}",
-        hulp,
-        rij["Uitval_1_percentage"],
-    )
-
-
-## Na hoeveel jaar we doorstroom meten: de gangbare duur van een mbo-opleiding.
-DOORSTROOM_JAREN = 3
-
-
-def _tegel_doorstroom(r: Resultaten) -> Kerncijfer:
-    """Van de instromers met een diploma: aandeel dat verder ging op hoger niveau.
-
-    Gemeten na ``DOORSTROOM_JAREN`` (of korter als dat nog niet kan), voor het
-    laatste cohort dat dan helemaal waarneembaar is. Als aandeel van alle
-    instromers zou het cijfer vooral laten zien hoeveel er nog studeren.
+    Geen indicatoren of cohorten: alleen wat er in de bestanden staat (studenten,
+    1 oktobers, inschrijvingen, diploma's, opleidingen, BRIN's). Die staan op de
+    pagina's met hun definitie erbij.
     """
-    naam, verder, onbekend = (
-        "Doorstroom na diploma",
-        coh.CATEGORIEEN[0],
-        coh.CATEGORIEEN[8],
-    )
-    met_diploma = coh.CATEGORIEEN[:3]
-    hulp = f"{DEFINITIES['loopbaanstatus']}\n\n{CATEGORIE_TOELICHTING[verder]}"
-    status = pl.col("Status")
-    per_cohort = (
-        r.loopbanen.filter(pl.col("Jaren") <= DOORSTROOM_JAREN)
-        .group_by("Jaren", "Cohort")
-        .agg(
-            pl.col("Aantal").filter(status.is_in(met_diploma)).sum().alias("dipl"),
-            pl.col("Aantal").filter(status == verder).sum().alias("verder"),
-            pl.col("Aantal").filter(status == onbekend).sum().alias("nog"),
-        )
-        .filter((pl.col("nog") == 0) & (pl.col("dipl") > 0))
-        .sort("Jaren", "Cohort")
-    )
-    if per_cohort.is_empty():
-        return Kerncijfer(naam, "–", "nog geen cohort met diploma's waarneembaar", hulp)
-    rij = per_cohort.row(-1, named=True)
-    deel = round(rij["verder"] / rij["dipl"] * 100, 1)
-    return Kerncijfer(
-        naam,
-        ov.pct(deel),
-        f"van de gediplomeerden, instroomcohort {rij['Cohort']}, na {rij['Jaren']} jaar",
-        hulp,
-        deel,
-    )
-
-
-def kerncijfers(r: Resultaten) -> list[Kerncijfer]:
-    """De zes kerncijfers op instellingsniveau, uit de bestaande tabellen.
-
-    Jaar-, diploma- en startersresultaat: driejaarscijfer van de laatste volledige
-    periode (geen norm). Instroom: laatste instroomcohort. Uitval na 1 jaar: laatste
-    cohort waarvan dat voor het hele cohort waarneembaar is. Doorstroom: van de
-    gediplomeerden het aandeel "Diploma, verder op hoger niveau", na drie jaar.
-    """
+    pm, dip, w = a.peilmomenten, a.diplomas, a.waarneming
+    jaren = w.laatste_jaar - w.eerste_jaar + 1 - len(w.gaten)
+    gaten = f", zonder {', '.join(map(str, w.gaten))}" if w.gaten else ""
+    laatste = pm.filter(pl.col("Jaar") == w.laatste_jaar)[_P].n_unique()
+    crebos = canoniek(pm.drop_nulls("Opleidingcode"), a.opvolgers)["Opleidingcode"]
+    brins = sorted(pm["BRIN"].drop_nulls().unique().to_list())
+    studenten = pm[_P].n_unique()
     return [
-        _tegel_driejaar(r, "Jaarresultaat", "jr"),
-        _tegel_driejaar(r, "Diplomaresultaat", "dr"),
-        _tegel_driejaar(r, "Startersresultaat", "sr"),
-        _tegel_instroom(r),
-        _tegel_uitval(r),
-        _tegel_doorstroom(r),
+        Kerncijfer(
+            "Studenten",
+            _getal(studenten),
+            "verschillende studenten in je bestanden",
+            "Iedereen die op minstens één 1 oktober ingeschreven stond, alle "
+            "niveaus en leerwegen.",
+            studenten,
+        ),
+        Kerncijfer(
+            "Schooljaren",
+            str(jaren),
+            f"1 oktober {w.eerste_jaar} t/m {w.laatste_jaar}{gaten}",
+            "Het aantal 1 oktobers (peildata) dat in je bestanden staat.",
+            jaren,
+        ),
+        Kerncijfer(
+            f"Ingeschreven op 1 oktober {w.laatste_jaar}",
+            _getal(laatste),
+            "studenten op de laatste peildatum",
+            "Studenten met een inschrijving op de laatste 1 oktober in je bestanden.",
+            laatste,
+        ),
+        Kerncijfer(
+            "Diploma's",
+            _getal(dip.height),
+            f"behaald vanaf {w.diplomas_vanaf:%d-%m-%Y}",
+            "Alle mbo-diploma's in je bestanden, ook van studenten die er nog "
+            "studeren.",
+            dip.height,
+        ),
+        Kerncijfer(
+            "Opleidingen",
+            str(crebos.n_unique()),
+            "crebo's; een vernieuwing telt als dezelfde",
+            "Verschillende crebo's met een inschrijving. Een crebo-vernieuwing "
+            "(opvolger) telt als dezelfde opleiding.",
+            crebos.n_unique(),
+        ),
+        Kerncijfer(
+            "BRIN-nummers",
+            str(len(brins)),
+            ", ".join(brins) if len(brins) <= 3 else "samen één instelling",
+            "Alle BRIN-nummers in je bestanden tellen samen als één instelling.",
+            len(brins),
+        ),
     ]
