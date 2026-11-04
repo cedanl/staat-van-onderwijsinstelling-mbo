@@ -1079,6 +1079,7 @@ source = { editable = "." }
 dependencies = [
     { name = "mbo-bekostiging-bestanden" },
     { name = "polars" },
+    { name = "streamlit" },
 ]
 
 [package.dev-dependencies]
@@ -1095,6 +1096,7 @@ dev = [
 requires-dist = [
     { name = "mbo-bekostiging-bestanden", git = "https://github.com/cedanl/mbo-bekostiging-bestanden?rev=05d5c5be33a68b1f7b7a53c57df22cb3a46a3063" },
     { name = "polars", specifier = ">=1.0" },
+    { name = "streamlit", specifier = ">=1.40" },
 ]
 
 [package.metadata.requires-dev]
