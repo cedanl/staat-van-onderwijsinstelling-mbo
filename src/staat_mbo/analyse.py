@@ -323,3 +323,30 @@ def bereken(a: Analyse) -> Resultaten:
         loopbanen=loopbanen,
         overgangen=_overgangen(a),
     )
+
+
+def dekking(w: Waarneming) -> pl.DataFrame:
+    """Per indicator en jaartijdvak: "ja", "onvolledig" of "nee".
+
+    "ja": waarneembaar en volledig. "onvolledig": waarneembaar, maar een
+    ondergrens (DR) of met een kortere terugblik dan zes jaar (SR).
+    """
+
+    def stand(naam: str, t: int, mogelijk: set[int]) -> str:
+        if t not in mogelijk:
+            return "nee"
+        return "ja" if ind.volledig(naam, w, t) else "onvolledig"
+
+    rijen = []
+    for naam in ("jr", "dr", "sr"):
+        mogelijk = set(ind.waarneembare_jaren(naam, w))
+        rijen.append(
+            {
+                "Indicator": naam.upper(),
+                **{
+                    f"{t}-{t + 1}": stand(naam, t, mogelijk)
+                    for t in range(w.eerste_jaar, w.laatste_jaar + 1)
+                },
+            }
+        )
+    return pl.DataFrame(rijen)

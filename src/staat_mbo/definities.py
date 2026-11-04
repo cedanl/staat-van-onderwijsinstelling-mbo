@@ -107,3 +107,69 @@ CATEGORIE_KLEUREN = [
     "#6b6b6b",
     "#d0d4d9",
 ]
+
+NAMEN = {
+    "jr": "Jaarresultaat",
+    "dr": "Diplomaresultaat",
+    "sr": "Startersresultaat",
+    "driejaarscijfer": "Driejaarscijfer en norm",
+    "instroomcohort": "Instroomcohort",
+    "rendement_nominaal": "Rendement nominaal",
+    "rendement_nominaal_plus_1": "Rendement nominaal + 1",
+    "uitval": "Uitval",
+    "loopbaanstatus": "Loopbaanstatus",
+    "studiewissel": "Studiewissel",
+}
+
+## Bronnen: naam en link.
+BRONNEN = {
+    "Regeling studiesucces mbo (Stcrt. 2022, 18467)": (
+        "https://zoek.officielebekendmakingen.nl/stcrt-2022-18467.pdf"
+    ),
+    "Uitvoeringsbesluit WEB, hoofdstuk 4A (Stb. 2022, 273)": (
+        "https://zoek.officielebekendmakingen.nl/stb-2022-273.pdf"
+    ),
+    "Regeling studiesucces mbo op wetten.overheid.nl": (
+        "https://wetten.overheid.nl/BWBR0046913/2022-08-01/0"
+    ),
+    "DUO, toelichting berekende indicatoren mbo 2024": (
+        "https://duo.nl/open_onderwijsdata/images/2024-toelichting-berekende-indicatoren.pdf"
+    ),
+}
+
+## Waarin deze cijfers verschillen van die van de Inspectie en van v4.
+VERSCHILLEN = [
+    (
+        "De Inspectie rekent op het register (ROD); wij rekenen op je eigen RO's. "
+        "Verwacht een verschil van enkele procentpunten."
+    ),
+    (
+        "Alle bestanden die je uploadt tellen als één instelling (bestuur). Een "
+        "overstap tussen je eigen BRIN's maakt iemand geen instellingsverlater."
+    ),
+    (
+        "Per student en 1 oktober telt één inschrijving: het hoogste niveau, dan het "
+        "laagste crebo, dan de recentste start. Welke de Inspectie kiest, staat niet "
+        "in de regeling."
+    ),
+    (
+        "Een opleiding is een crebo; een crebo-vernieuwing telt samen via de opvolger "
+        "in de opleidingstabel, waar die is gevuld."
+    ),
+    "OVO en ODT vallen buiten de cijfers, entree (niveau 1) ook. Extranei tellen mee.",
+    "We filteren niet op bekostigbaarheid van de student.",
+    (
+        "Onder een noemer van 12 tonen we geen percentage. Die grens komt uit het "
+        "document van de Inspectie dat mbo-bekostiging-bestanden noemt; we hebben "
+        "het niet kunnen nalezen."
+    ),
+    (
+        "Het jaarresultaat en diplomaresultaat in mbo-bekostiging-bestanden zijn een "
+        "benadering (schooljaar in plaats van jaartijdvak, een andere noemer voor het "
+        "jaarresultaat). Deze app volgt de regeling; daardoor verschillen de cijfers."
+    ),
+    (
+        "We tonen de norm uit de regeling als referentielijn. We berekenen geen "
+        "oordeel: niet de 2-van-3-regel en geen maatwerk."
+    ),
+]
