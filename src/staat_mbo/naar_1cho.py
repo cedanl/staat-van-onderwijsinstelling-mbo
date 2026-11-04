@@ -8,6 +8,8 @@ from pathlib import Path
 
 import polars as pl
 
+from staat_mbo.loopbaan import eerste_peiljaar
+
 KOLOMMEN_1CHO = [
     "persoonsgebonden_nummer",
     "soort_hoger_onderwijs",
@@ -42,12 +44,6 @@ LABEL_NEVEN = "neveninschrijving binnen het domein actuele instelling"
 LABEL_DIPLOMA = "Diploma mbo binnen de actuele instelling"
 _GESLACHT = {"M": "man", "V": "vrouw"}
 _P = "_persoon_id"
-
-
-def eerste_peiljaar(datum: pl.Expr) -> pl.Expr:
-    """Schooljaar van de eerste 1 oktober op of na ``datum``."""
-    jaar = datum.dt.year()
-    return pl.when(datum <= pl.date(jaar, 10, 1)).then(jaar).otherwise(jaar + 1)
 
 
 def diplomajaar(datum: pl.Expr) -> pl.Expr:
