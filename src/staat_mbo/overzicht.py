@@ -271,7 +271,10 @@ def verdeling_tabel(df: pl.DataFrame, per: list[str]) -> pl.DataFrame:
     """Percentage per loopbaanstatus naast elkaar, met een totaal en n per rij."""
     v = verdeling(df, per)
     breed = v.pivot(on="Status", index=per, values="Percentage").sort(per)
-    status = [c for c in CATEGORIEEN if c in breed.columns]
+    for c in CATEGORIEEN:
+        if c not in breed.columns:
+            breed = breed.with_columns(pl.lit(None, dtype=pl.Float64).alias(c))
+    status = CATEGORIEEN
     n = v.group_by(per).agg(pl.col("Aantal").sum().alias("n"))
     return (
         breed.join(n, on=per)

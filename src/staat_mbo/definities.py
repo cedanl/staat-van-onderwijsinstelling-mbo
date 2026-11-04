@@ -63,3 +63,47 @@ DEFINITIES = {
         "afstromen tellen niet als wissel."
     ),
 }
+
+## Wat elke loopbaanstatus betekent, per categorie van ``cohorten.CATEGORIEEN``.
+CATEGORIE_TOELICHTING = {
+    "Diploma, verder op hoger niveau": (
+        "Stapelen: diploma gehaald en een jaar later ingeschreven op een hoger "
+        "niveau. Telt niet als uitval of wissel."
+    ),
+    "Diploma, vertrokken": (
+        "Diploma gehaald en een jaar later niet meer bij de instelling."
+    ),
+    "Diploma, nog ingeschreven op hetzelfde of lager niveau": (
+        "Diploma gehaald en toch weer ingeschreven op hetzelfde of een lager niveau."
+    ),
+    "Zonder diploma, zelfde opleiding": (
+        "Nog bezig: nog ingeschreven voor hetzelfde crebo (of zijn opvolger)."
+    ),
+    "Zonder diploma, ander crebo op hetzelfde niveau": (
+        "Studiewissel: zonder diploma naar een ander crebo op hetzelfde niveau."
+    ),
+    "Zonder diploma, hoger niveau": "Opstromen: zonder diploma naar een hoger niveau.",
+    "Zonder diploma, lager niveau": (
+        "Afstromen: zonder diploma naar een lager niveau, entree inbegrepen."
+    ),
+    "Vertrokken zonder diploma": (
+        "Uitgevallen: niet meer ingeschreven en sinds de start geen diploma."
+    ),
+    "Nog niet waarneembaar": (
+        "Het moment na de start valt nog niet in je bestanden. Dit is geen uitkomst."
+    ),
+}
+
+## Vaste kleuren per categorie, in dezelfde volgorde: diploma's blauw,
+## zonder diploma warm, uitval grijs. Geen rood of groen: het is geen oordeel.
+CATEGORIE_KLEUREN = [
+    "#1f4e79",
+    "#4c78a8",
+    "#9ecae1",
+    "#f2b134",
+    "#f58518",
+    "#b279a2",
+    "#9d7660",
+    "#6b6b6b",
+    "#d0d4d9",
+]
