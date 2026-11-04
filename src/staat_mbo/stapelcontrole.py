@@ -7,8 +7,6 @@ from itertools import pairwise
 
 import polars as pl
 
-_MIN_JAREN = 5
-
 
 @dataclass
 class Stapelrapport:
@@ -112,10 +110,5 @@ def controleer_stapel(star: dict[str, pl.DataFrame]) -> Stapelrapport:
     if len(namen) > 1:
         rapport.waarschuwingen.append(
             f"de bestanden horen bij {', '.join(namen)}; ze tellen als één bestuur."
-        )
-    if len(rapport.schooljaren) < _MIN_JAREN:
-        rapport.waarschuwingen.append(
-            f"minder dan {_MIN_JAREN} schooljaren; "
-            "rendement na 5 jaar is nog niet te zien."
         )
     return rapport
