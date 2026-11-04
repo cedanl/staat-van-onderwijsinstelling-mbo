@@ -166,3 +166,12 @@ def toon_tabel(df: pl.DataFrame, bestandsnaam: str, **kolommen) -> None:
         mime="text/csv",
         key=f"download_{bestandsnaam}",
     )
+
+
+def toon_dekkingsmeldingen(analyse: Analyse) -> None:
+    """De meldingen over de dekking van de bestanden, ingeklapt onder de cijfers."""
+    meldingen = [*analyse.rapport.waarschuwingen, *(m.tekst for m in analyse.meldingen)]
+    if meldingen:
+        with st.expander(f"Meldingen over je bestanden ({len(meldingen)})"):
+            for tekst in meldingen:
+                st.markdown(f"- {tekst}")
