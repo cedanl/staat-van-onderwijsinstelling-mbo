@@ -5,6 +5,8 @@ Alles rekent op de mbo-tussenlaag (``peilmomenten``, ``diplomas``) en de
 leerweg) een teller en een noemer per jaartijdvak.
 """
 
+from datetime import date
+
 import polars as pl
 from mbo_bekostiging_bestanden.waardenlijsten import (
     leertrajecten_buiten_indicatorpopulatie,
@@ -89,4 +91,50 @@ def jaarresultaat(pm: pl.DataFrame, dip: pl.DataFrame, w: Waarneming) -> pl.Data
     return _som(
         _met_teller(laatste.filter(_populatie()), teller=1),
         _met_teller(ongediplomeerd, teller=0),
+    )
+
+
+## Een diploma telt voor het diplomaresultaat mee tot vijf jaar vóór het jaartijdvak.
+DIPLOMA_JAREN_TERUG = 5
+
+
+def dr_volledig(w: Waarneming, t: int) -> bool:
+    """Zitten alle diploma's van 1-10-(t-5) af in de bestanden?"""
+    return w.diplomas_vanaf <= date(t - DIPLOMA_JAREN_TERUG, 10, 1)
+
+
+def diplomaresultaat(
+    pm: pl.DataFrame, dip: pl.DataFrame, w: Waarneming
+) -> pl.DataFrame:
+    """Diplomaresultaat per jaartijdvak en opleiding (ontwerp §5.2).
+
+    Noemer: instellingsverlaters, toegerekend aan de opleiding waaruit ze
+    vertrekken. Teller: verlaters met een diploma 2-4 uit het jaartijdvak of de
+    vijf jaar ervoor, van welk crebo of niveau ook (een stapelaar die uitvalt
+    telt positief). ``Volledig``: de diplomahistorie reikt ver genoeg terug.
+    """
+    jaren = _jaren_jr_dr(w)
+    verlaters = _verlaters(pm, jaren)
+    vanaf = pl.date(pl.col("Jaartijdvak") - DIPLOMA_JAREN_TERUG, 10, 1)
+    tot = pl.date(pl.col("Jaartijdvak") + 1, 9, 30)
+    met_diploma = (
+        verlaters.select(_P, "Jaartijdvak")
+        .join(dip.filter(pl.col("Niveau").is_in(NIVEAUS)), on=_P)
+        .filter(pl.col("Datum").is_between(vanaf, tot))
+        .select(_P, "Jaartijdvak")
+        .unique()
+        .with_columns(pl.lit(1, dtype=pl.Int64).alias("Teller"))
+    )
+    uit = (
+        verlaters.join(met_diploma, on=[_P, "Jaartijdvak"], how="left")
+        .with_columns(
+            pl.col("Teller").fill_null(0), pl.lit(1, dtype=pl.Int64).alias("Noemer")
+        )
+        .select(_RESULTAAT)
+    )
+    volledig = {t: dr_volledig(w, t) for t in jaren}
+    return _som(uit).with_columns(
+        pl.col("Jaartijdvak")
+        .replace_strict(volledig, return_dtype=pl.Boolean)
+        .alias("Volledig")
     )
