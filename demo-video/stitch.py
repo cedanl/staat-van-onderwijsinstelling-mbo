@@ -72,7 +72,10 @@ filters.append(
 teksten = []
 for naam, t, wav in stappen:
     pad = DEMO / "audio" / f"ondertitel_{naam}.txt"
-    pad.write_text("\n".join(textwrap.wrap(ONDERTITEL[naam], 68)), encoding="utf-8")
+    ## Bytes: write_text maakt op Windows \r\n van een regeleinde, en ffmpeg
+    ## tekent dat als een extra regel.
+    tekst = "\n".join(textwrap.wrap(ONDERTITEL[naam], 68))
+    pad.write_bytes(tekst.encode("utf-8"))
     van = nieuwe_tijd(t)
     tot = van + duur(wav) + 0.7
     tekstpad = pad.relative_to(DEMO.parent).as_posix()

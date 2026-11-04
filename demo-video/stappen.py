@@ -1,57 +1,69 @@
 """Stappen van de demovideo: ondertitel (beeld) en uitspraak (voice-over).
 
 Eén bron voor record.py en generate_audio.py, zodat beeld en geluid gelijk lopen.
+De ondertitel is hooguit 110 tekens (tests/test_demo_stappen.py); de uitspraak
+spelt afkortingen uit voor de stem.
 """
 
 STAPPEN = [
     (
-        "intro",
-        "Dit is de Staat van de Onderwijsinstelling voor het mbo. Alles gebeurt op deze ene pagina.",
-        "Dit is de Staat van de Onderwijsinstelling voor het m b o. Alles gebeurt op deze ene pagina.",
+        "start",
+        "Dit is de Staat van de Onderwijsinstelling voor het mbo. Kies je RO-bestanden van DUO.",
+        "Dit is de Staat van de Onderwijsinstelling voor het m b o. Hier kies je je R O bestanden van DUO.",
     ),
     (
-        "bestanden",
-        "Klik op Bladeren en kies al je RO- en TBG-i-bestanden van DUO tegelijk.",
-        "Klik op Bladeren, en kies al je R O en T B G i bestanden van DUO tegelijk.",
-    ),
-    (
-        "samenvoegen",
-        "Klik op Samenvoegen. De bestanden worden één bestand.",
-        "Klik op Samenvoegen. De bestanden worden samengevoegd tot één bestand.",
+        "demodata",
+        "Nog geen bestanden bij de hand? Probeer de demodata: tien jaar, één verzonnen instelling.",
+        "Nog geen bestanden bij de hand? Probeer dan de demodata: tien jaar, van één verzonnen instelling.",
     ),
     (
         "gelukt",
-        "Je ziet meteen of het gelukt is: welke jaren, hoeveel studenten en waar je op moet letten.",
-        "Je ziet meteen of het gelukt is. Welke instellingen en schooljaren erin zitten, hoeveel studenten, en waar je op moet letten.",
+        "Je ziet meteen of het gelukt is en welke meldingen er zijn over je bestanden.",
+        "Je ziet meteen of het gelukt is, en welke meldingen er zijn over je bestanden.",
     ),
     (
-        "verder",
-        "Gelukt? Klik op Verder naar het dashboard.",
-        "Is het gelukt? Klik dan op Verder naar het dashboard.",
+        "studiesucces",
+        "Studiesucces: jaarresultaat, diplomaresultaat en startersresultaat uit de Regeling studiesucces mbo.",
+        "Op de pagina Studiesucces zie je het jaarresultaat, het diplomaresultaat en het startersresultaat, volgens de Regeling studiesucces m b o.",
     ),
     (
-        "tabs",
-        "Bovenaan staan de onderdelen: instroom, rendement, uitval en studiewissel.",
-        "Dit is het dashboard. Bovenaan staan de onderdelen: instroom, rendement, uitval en studiewissel.",
+        "indicatief",
+        "Alle cijfers zijn indicatief, geen oordeel: we rekenen de regeling na op jouw bestanden.",
+        "Alle cijfers zijn indicatief, en geen oordeel. We rekenen de regeling na op jouw bestanden.",
     ),
     (
-        "rendement",
-        "Rendement: hoeveel studenten binnen 3, 5 of 8 jaar een diploma halen.",
-        "Onder Rendement zie je hoeveel studenten binnen drie, vijf of acht jaar een diploma halen.",
+        "tabel",
+        "Per opleiding zie je de drie cijfers en de norm. Een vernieuwd crebo telt als één opleiding.",
+        "Per opleiding zie je de drie cijfers en de norm. Een vernieuwd crebo telt samen met zijn voorganger als één opleiding.",
     ),
     (
-        "uitval",
-        "Uitval: hoeveel studenten zonder diploma vertrekken.",
-        "Onder Uitval zie je hoeveel studenten zonder diploma vertrekken.",
+        "norm",
+        "Per niveau zie je het verloop. De stippellijn is de norm uit de regeling.",
+        "Per niveau zie je het verloop over de jaren. De stippellijn is de norm uit de regeling.",
     ),
     (
-        "filter",
-        "Links filter je, bijvoorbeeld op BOL of BBL. De cijfers passen zich direct aan.",
-        "Links kun je filteren, bijvoorbeeld op B O L of B B L. Alle cijfers passen zich direct aan.",
+        "cohorten",
+        "Cohorten: hoeveel studenten instromen en welk deel binnen de nominale duur een diploma haalt.",
+        "Bij Cohorten zie je hoeveel studenten er instromen, en welk deel binnen de nominale duur een diploma haalt.",
+    ),
+    (
+        "loopbanen",
+        "Loopbanen: waar studenten na één, twee of drie jaar staan. Stapelen telt niet als uitval of wissel.",
+        "Bij Loopbanen zie je waar studenten na een, twee of drie jaar staan. Stapelen telt niet als uitval of wissel.",
+    ),
+    (
+        "niveaus",
+        "Van niveau naar niveau: stapelen na een diploma, opstromen zonder diploma, en afstromen.",
+        "Van niveau naar niveau: stapelen na een diploma, opstromen zonder diploma, en afstromen.",
+    ),
+    (
+        "over",
+        "Over de cijfers legt de definities uit, noemt de bronnen en toont wat je bestanden dekken.",
+        "Over de cijfers legt de definities uit, noemt de bronnen, en laat zien wat je bestanden dekken.",
     ),
     (
         "slot",
-        "Met Nieuw bestand begin je opnieuw.",
-        "Met Nieuw bestand begin je opnieuw. Zo zie je in een paar klikken hoe het je studenten vergaat.",
+        "Zo zie je in een paar klikken hoe het je studenten vergaat.",
+        "Zo zie je in een paar klikken hoe het je studenten vergaat.",
     ),
 ]
