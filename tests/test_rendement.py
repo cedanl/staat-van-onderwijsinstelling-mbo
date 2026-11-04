@@ -144,7 +144,7 @@ def test_rendement_behoudt_de_cohortkolommen():
     ]
 
 
-def test_rendement_per_groep_telt_null_niet_mee():
+def test_rendement_per_groep_deels_waarneembaar_geeft_geen_percentage():
     uit = pl.concat([_cohort()] * 3).with_columns(
         pl.Series("_persoon_id", ["a", "b", "c"])
     )
@@ -164,8 +164,10 @@ def test_rendement_per_groep_telt_null_niet_mee():
     rij = groep.to_dicts()[0]
     assert rij["Instroom"] == 3
     assert rij["Nominaal_aantal"] == 1
-    assert rij["Nominaal_percentage"] == 50.0
-    assert rij["Nominaal_plus_1_percentage"] == 100.0
+    # Niet alles waarneembaar: geen percentage, anders mengt het cohort
+    # korte opleidingen (al waarneembaar) met lange (nog niet).
+    assert rij["Nominaal_percentage"] is None
+    assert rij["Nominaal_plus_1_percentage"] is None
     assert rij["Nog_niet_waarneembaar"] == 1
     assert rij["In_eigen_aantal"] == 1
 

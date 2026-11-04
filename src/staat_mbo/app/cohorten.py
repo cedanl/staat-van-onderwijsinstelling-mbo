@@ -156,8 +156,8 @@ st.subheader(
 )
 percentagegrafiek(totaal, RENDEMENT, "Rendement (%)")
 st.caption(
-    "Grijs = nog niet waarneembaar: de nominale duur (of een jaar meer) valt nog "
-    "niet in je bestanden. Dat telt niet als 0%."
+    "Grijs = nog niet waarneembaar: voor een deel van het cohort valt de nominale "
+    "duur (of een jaar meer) nog niet in je bestanden. Dat telt niet als 0%."
 )
 
 st.subheader("Uitval", help=DEFINITIES["uitval"])

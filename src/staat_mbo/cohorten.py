@@ -212,11 +212,16 @@ def rendement(
 
 
 def percentage_waar(vlag: str) -> pl.Expr:
-    """Percentage True van de waarneembare (niet-null) rijen; null zonder rijen."""
-    waarneembaar = pl.col(vlag).drop_nulls()
+    """Percentage True, alleen als elke rij van de groep waarneembaar is.
+
+    Is een deel nog null (bv. een cohort met korte opleidingen die al
+    waarneembaar zijn en lange die dat nog niet zijn), dan null: anders
+    vergelijkt het percentage een andere populatie dan eerdere cohorten.
+    """
+    kolom = pl.col(vlag)
     return (
-        pl.when(waarneembaar.len() > 0)
-        .then(waarneembaar.sum() / waarneembaar.len() * 100)
+        pl.when((kolom.len() > 0) & (kolom.null_count() == 0))
+        .then(kolom.sum() / kolom.len() * 100)
         .round(1)
     )
 
