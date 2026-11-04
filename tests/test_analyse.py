@@ -81,7 +81,7 @@ def test_kerncijfers_op_de_demodata(demodata_analyse):
     assert "2025" in tegels["Instroom"].ondertitel
     assert tegels["Uitval na 1 jaar"].waarde == "16,4%"
     assert "2024" in tegels["Uitval na 1 jaar"].ondertitel
-    assert tegels["Doorstroom na diploma"].waarde == "1,3%"
+    assert tegels["Doorstroom na diploma"].waarde == "22,5%"
     assert all(t.help for t in tegels.values())
 
 

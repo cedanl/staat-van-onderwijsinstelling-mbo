@@ -423,32 +423,46 @@ def _tegel_uitval(r: Resultaten) -> Kerncijfer:
     )
 
 
+## Na hoeveel jaar we doorstroom meten: de gangbare duur van een mbo-opleiding.
+DOORSTROOM_JAREN = 3
+
+
 def _tegel_doorstroom(r: Resultaten) -> Kerncijfer:
-    naam, stap, onbekend = (
+    """Van de instromers met een diploma: aandeel dat verder ging op hoger niveau.
+
+    Gemeten na ``DOORSTROOM_JAREN`` (of korter als dat nog niet kan), voor het
+    laatste cohort dat dan helemaal waarneembaar is. Als aandeel van alle
+    instromers zou het cijfer vooral laten zien hoeveel er nog studeren.
+    """
+    naam, verder, onbekend = (
         "Doorstroom na diploma",
         coh.CATEGORIEEN[0],
         coh.CATEGORIEEN[8],
     )
-    hulp = f"{DEFINITIES['loopbaanstatus']}\n\n{CATEGORIE_TOELICHTING[stap]}"
-    waarneembaar = (
-        r.loopbanen.filter(pl.col("Jaren") == 1)
-        .group_by("Cohort")
+    met_diploma = coh.CATEGORIEEN[:3]
+    hulp = f"{DEFINITIES['loopbaanstatus']}\n\n{CATEGORIE_TOELICHTING[verder]}"
+    status = pl.col("Status")
+    per_cohort = (
+        r.loopbanen.filter(pl.col("Jaren") <= DOORSTROOM_JAREN)
+        .group_by("Jaren", "Cohort")
         .agg(
-            pl.col("Aantal").sum().alias("n"),
-            pl.col("Aantal").filter(pl.col("Status") == stap).sum().alias("stap"),
-            pl.col("Aantal").filter(pl.col("Status") == onbekend).sum().alias("nog"),
+            pl.col("Aantal").filter(status.is_in(met_diploma)).sum().alias("dipl"),
+            pl.col("Aantal").filter(status == verder).sum().alias("verder"),
+            pl.col("Aantal").filter(status == onbekend).sum().alias("nog"),
         )
-        .filter(pl.col("nog") == 0)
-        .sort("Cohort")
+        .filter((pl.col("nog") == 0) & (pl.col("dipl") > 0))
+        .sort("Jaren", "Cohort")
     )
-    if waarneembaar.is_empty():
-        return Kerncijfer(
-            naam, "–", "nog geen cohort waarvan dit na 1 jaar bekend is", hulp
-        )
-    rij = waarneembaar.row(-1, named=True)
-    deel = round(rij["stap"] / rij["n"] * 100, 1)
+    if per_cohort.is_empty():
+        return Kerncijfer(naam, "–", "nog geen cohort met diploma's waarneembaar", hulp)
+    rij = per_cohort.row(-1, named=True)
+    deel = round(rij["verder"] / rij["dipl"] * 100, 1)
     return Kerncijfer(
-        naam, ov.pct(deel), f"instroomcohort {rij['Cohort']}, na 1 jaar", hulp, deel
+        naam,
+        ov.pct(deel),
+        f"van de gediplomeerden, instroomcohort {rij['Cohort']}, na {rij['Jaren']} jaar",
+        hulp,
+        deel,
     )
 
 
@@ -457,9 +471,8 @@ def kerncijfers(r: Resultaten) -> list[Kerncijfer]:
 
     Jaar-, diploma- en startersresultaat: driejaarscijfer van de laatste volledige
     periode (geen norm). Instroom: laatste instroomcohort. Uitval na 1 jaar: laatste
-    cohort waarvan dat voor het hele cohort waarneembaar is. Doorstroom: aandeel
-    "Diploma, verder op hoger niveau" na 1 jaar, laatste cohort zonder "Nog niet
-    waarneembaar".
+    cohort waarvan dat voor het hele cohort waarneembaar is. Doorstroom: van de
+    gediplomeerden het aandeel "Diploma, verder op hoger niveau", na drie jaar.
     """
     return [
         _tegel_driejaar(r, "Jaarresultaat", "jr"),

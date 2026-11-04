@@ -49,8 +49,8 @@ if analyse is not None:
         tegels = kerncijfers(ui.resultaten(analyse))
         for rij in (tegels[:3], tegels[3:]):
             for kolom, t in zip(st.columns(3), rij, strict=True):
-                kolom.metric(t.naam, t.waarde)
-                kolom.caption(f"{t.ondertitel}  \n{t.help}" if t.help else t.ondertitel)
+                kolom.metric(t.naam, t.waarde, help=t.help or None)
+                kolom.caption(t.ondertitel)
         st.caption(
             "Kies links een pagina: Studiesucces, Cohorten, Loopbanen of "
             "Over de cijfers."

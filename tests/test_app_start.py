@@ -96,7 +96,7 @@ def test_start_toont_zes_kerncijfertegels_op_de_demodata(demodata_analyse):
         "80,7%",
         "226",
         "16,4%",
-        "1,3%",
+        "22,5%",
     ]
     assert any("Indicatief" in i.value for i in at.info)
 
