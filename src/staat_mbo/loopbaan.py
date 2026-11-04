@@ -50,3 +50,49 @@ def peilmomenten(star: dict[str, pl.DataFrame]) -> pl.DataFrame:
         )
         .unique([_P, "Jaar"], keep="first", maintain_order=True)
     )
+
+
+def jaartijdvak(datum: pl.Expr) -> pl.Expr:
+    """Jaar waarin het jaartijdvak (1 oktober t/m 30 september) van ``datum`` begint."""
+    jaar = datum.dt.year()
+    return pl.when(datum.dt.month() >= 10).then(jaar).otherwise(jaar - 1)
+
+
+def diplomas(star: dict[str, pl.DataFrame]) -> pl.DataFrame:
+    """Eén rij per persoon × diploma, met het niveau van het diploma zelf.
+
+    Het niveau komt van het crebo van het diploma, niet van de inschrijving:
+    een eerder diploma op een lager niveau telt mee. Leerweg en BRIN komen
+    van de inschrijving waar het diploma bij hoort.
+    """
+    niveaus = (
+        star["dim_opleiding"]
+        .select("Opleidingcode", "Niveau")
+        .unique("Opleidingcode", keep="first", maintain_order=True)
+    )
+    dip = (
+        star["fact_inschrijving"]
+        .filter(pl.col("DIP_DatumResultaat").is_not_null())
+        .select(
+            _P,
+            pl.col("DIP_Opleidingcode").alias("Opleidingcode"),
+            "Leertraject",
+            "BRIN",
+            pl.col("DIP_DatumResultaat").alias("Datum"),
+        )
+        .join(niveaus, on="Opleidingcode", how="left")
+    )
+    return (
+        vul_niveau_aan(dip)
+        .select(
+            _P,
+            "Opleidingcode",
+            niveau_getal(pl.col("Niveau")).alias("Niveau"),
+            "Leertraject",
+            "BRIN",
+            "Datum",
+            jaartijdvak(pl.col("Datum")).cast(pl.Int32).alias("Jaartijdvak"),
+        )
+        .sort(_P, "Opleidingcode", "Datum", "BRIN", "Leertraject", nulls_last=True)
+        .unique([_P, "Opleidingcode", "Datum"], keep="first", maintain_order=True)
+    )
