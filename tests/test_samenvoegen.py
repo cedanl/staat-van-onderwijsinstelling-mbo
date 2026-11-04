@@ -1,9 +1,9 @@
 import json
 import shutil
-from pathlib import Path
 
 import polars as pl
 
+from staat_mbo.analyse import DEMODATA
 from staat_mbo.cli import main
 from staat_mbo.samenvoegen import (
     BESTAND_DIPLOMAS,
@@ -13,7 +13,6 @@ from staat_mbo.samenvoegen import (
 )
 from tests.conftest import RUW
 
-DEMODATA = Path(__file__).parent.parent / "demodata"
 STAAT_KOLOMMEN = [
     "Indicator",
     "Jaartijdvak",

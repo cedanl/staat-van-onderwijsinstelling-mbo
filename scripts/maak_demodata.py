@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
 
-DOEL = Path(__file__).parent.parent / "demodata"
+DOEL = Path(__file__).parent.parent / "src" / "staat_mbo" / "demodata"
 EERSTE_JAAR = 2020
 LAATSTE_JAAR = 2025  # laatste schooljaar (2025-2026)
 AANMAAK = date(2026, 10, 2)

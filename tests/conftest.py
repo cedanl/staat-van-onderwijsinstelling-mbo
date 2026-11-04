@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 ## Kleine nep-DUO-bestanden in verschillende varianten (geen echte studenten).
-## De grote set voor gebruikers staat in demodata/ (scripts/maak_demodata.py).
+## De grote set voor gebruikers staat in src/staat_mbo/demodata/ (scripts/maak_demodata.py).
 RUW = Path(__file__).parent / "fixtures" / "ruw"
 
 
@@ -25,16 +25,16 @@ def demo_star(tmp_path_factory):
 @pytest.fixture(scope="session")
 def demodata_star(tmp_path_factory):
     """Star van de demodata (één instelling, meerdere jaren), één keer gebouwd."""
+    from staat_mbo.analyse import DEMODATA as demodata
     from staat_mbo.bron import laad_star
 
-    demodata = Path(__file__).parent.parent / "demodata"
     return laad_star([demodata], tmp_path_factory.mktemp("demodata"))
 
 
 @pytest.fixture(scope="session")
 def demodata_analyse(tmp_path_factory):
     """Analyse van de demodata, één keer per testsessie gebouwd."""
+    from staat_mbo.analyse import DEMODATA as demodata
     from staat_mbo.analyse import maak_analyse
 
-    demodata = Path(__file__).parent.parent / "demodata"
     return maak_analyse([demodata], tmp_path_factory.mktemp("analyse"))
