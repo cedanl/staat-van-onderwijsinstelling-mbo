@@ -48,18 +48,6 @@ def nominale_duur(star: dict[str, pl.DataFrame]) -> pl.DataFrame:
     )
 
 
-def opleidingen_met_standaardduur(
-    df: pl.DataFrame, duur: pl.DataFrame
-) -> tuple[int, int]:
-    """(zonder eigen nominale duur, totaal) over opleiding × leerweg in de uitvoer."""
-    opleidingen = df.select(
-        pl.col("opleiding_actueel_equivalent").alias("Opleidingcode"),
-        pl.col("opleidingsvorm").alias("Leertraject"),
-    ).unique()
-    zonder = opleidingen.join(duur, on=["Opleidingcode", "Leertraject"], how="anti")
-    return zonder.height, opleidingen.height
-
-
 def duur_per_opleiding(duur: pl.DataFrame, opleidingen: pl.DataFrame) -> pl.DataFrame:
     """Duur en de herkomst ervan per opleiding × leerweg.
 

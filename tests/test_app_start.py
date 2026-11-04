@@ -71,3 +71,14 @@ def test_omgevingsinvoer_laadt_bij_de_start(ingebouwde_sleutel, monkeypatch):
 @pytest.mark.parametrize("pagina", ["start.py", "main.py"])
 def test_app_rendert_zonder_exception(ingebouwde_sleutel, pagina):
     assert not _app(pagina).run().exception
+
+
+@pytest.mark.parametrize(
+    "pagina",
+    ["start.py", "studiesucces.py", "cohorten.py", "loopbanen.py", "over.py"],
+)
+def test_elke_pagina_rendert_op_de_demodata_zonder_exception(demodata_analyse, pagina):
+    at = _app(pagina)
+    at.session_state[SESSIE_ANALYSE] = demodata_analyse
+    at.run()
+    assert not at.exception

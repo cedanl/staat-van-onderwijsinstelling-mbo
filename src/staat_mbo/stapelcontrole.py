@@ -54,15 +54,11 @@ def gaten(leveringen: pl.DataFrame) -> list[dict]:
     return gaten
 
 
-## Oude naam, tot de R-brug en 1CHO verdwijnen (T19).
-_gaten = gaten
-
-
 def _ongelijk_einde(leveringen: pl.DataFrame) -> list[str]:
     """BRIN's die eerder ophouden dan de rest.
 
-    staat1cho telt iedereen die in het laatste jaar ontbreekt als vertrokken;
-    stopt een BRIN eerder, dan lijkt daar iedereen uitgevallen.
+    Alle cijfers rekenen tot de laatste 1 oktober die elke BRIN dekt; wat een
+    BRIN daarna nog levert, doet niet mee.
     """
     if "Laatste_peildatum" not in leveringen.columns:
         return []
@@ -76,10 +72,11 @@ def _ongelijk_einde(leveringen: pl.DataFrame) -> list[str]:
     if einde.is_empty():
         return []
     laatste = einde["Laatste_peildatum"].max()
+    tot = einde["Laatste_peildatum"].min().year
     return [
         f"de bestanden van {brin} lopen tot {datum:%d-%m-%Y}, de rest tot "
-        f"{laatste:%d-%m-%Y}; uitval van {brin} na {datum:%Y} is niet te "
-        "vertrouwen. Upload ook de nieuwste RO van deze BRIN."
+        f"{laatste:%d-%m-%Y}; we rekenen tot {tot}, het vroegste einde. Upload "
+        "ook de nieuwste RO van deze BRIN voor latere jaren."
         for brin, datum in einde.iter_rows()
         if datum < laatste
     ]
@@ -93,7 +90,7 @@ def controleer_stapel(star: dict[str, pl.DataFrame]) -> Stapelrapport:
         instellingen=namen,
         schooljaren=sorted(set(feit["Schooljaar"].drop_nulls())),
         aantal_studenten=feit["_persoon_id"].n_unique(),
-        gaten=_gaten(star["meta_leveringen"]),
+        gaten=gaten(star["meta_leveringen"]),
     )
     if feit.is_empty():
         rapport.fouten.append(

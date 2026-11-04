@@ -124,4 +124,4 @@ def test_brins_met_ander_einde_waarschuwing():
             laatste=[date(2023, 10, 1), date(2024, 10, 1)],
         )
     )
-    assert any("21CY" in w and "uitval" in w for w in r.waarschuwingen)
+    assert any("21CY" in w and "we rekenen tot 2023" in w for w in r.waarschuwingen)
