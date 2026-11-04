@@ -20,7 +20,7 @@ from stappen import STAPPEN
 
 TAKE = DEMO / "scenes" / "take.webm"
 UIT = DEMO / "demo_final.mp4"
-NA_STAP = 2.2  # seconden na de voice-over die in beeld blijven (klik, begin van laden)
+NA_STAP = 0.6  # seconden na de voice-over die in beeld blijven (klik, begin van laden)
 VOOR_STAP = 1.0  # seconden vóór de volgende stap
 EINDE = 2.0
 BALK = 120  # hoogte van de ondertitelbalk onder het beeld
@@ -74,7 +74,7 @@ for naam, t, wav in stappen:
     pad = DEMO / "audio" / f"ondertitel_{naam}.txt"
     ## Bytes: write_text maakt op Windows \r\n van een regeleinde, en ffmpeg
     ## tekent dat als een extra regel.
-    tekst = "\n".join(textwrap.wrap(ONDERTITEL[naam], 68))
+    tekst = "\n".join(textwrap.wrap(ONDERTITEL[naam], 90))
     pad.write_bytes(tekst.encode("utf-8"))
     van = nieuwe_tijd(t)
     tot = van + duur(wav) + 0.7
@@ -82,7 +82,7 @@ for naam, t, wav in stappen:
     teksten.append(
         f"drawtext=fontfile='{LETTER}':textfile='{tekstpad}':fontsize=28:"
         "fontcolor=white:line_spacing=8:x=(w-text_w)/2:"
-        f"y=h-{BALK}+({BALK}-text_h)/2:enable='between(t,{van:.2f},{tot:.2f})'"
+        f"expansion=none:y=h-{BALK}+({BALK}-text_h)/2:enable='between(t,{van:.2f},{tot:.2f})'"
     )
 filters.append(f"[vc]pad=iw:ih+{BALK}:0:0:color=0x0f172a," + ",".join(teksten) + "[v]")
 invoer = ["-i", str(TAKE)]
