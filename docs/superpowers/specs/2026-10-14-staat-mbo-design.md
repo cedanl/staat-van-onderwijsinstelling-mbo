@@ -1,5 +1,7 @@
 # Staat van de Onderwijsinstelling MBO — ontwerp
 
+> **Vervangen:** dit ontwerp is vervangen door [het dashboard-ontwerp van 2026-11-04](./2026-11-04-mbo-dashboard-design.md) (geen R, geen 1CHO). Dit document blijft staan als geschiedenis.
+
 Pitch: [#1](https://github.com/cedanl/staat-van-onderwijsinstelling-mbo/issues/1). Onderzoek: cedanl/mbo-bekostiging-bestanden#389.
 
 ## Doel

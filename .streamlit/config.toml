@@ -1,0 +1,18 @@
+# Npuls-thema; gelijk aan staat_mbo.palet.THEMA (een test bewaakt dat).
+# `smbo dashboard` zet dit ook via --theme.*, voor elke werkmap.
+[theme]
+base = "light"
+primaryColor = "#3D68EC"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#D6E2FD"
+textColor = "#000000"
+baseRadius = "large"
+
+[theme.sidebar]
+backgroundColor = "#F4D9DC"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#000000"
+primaryColor = "#3D68EC"
+
+[browser]
+gatherUsageStats = false

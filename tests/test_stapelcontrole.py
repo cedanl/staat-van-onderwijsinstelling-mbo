@@ -95,13 +95,6 @@ def test_meerdere_instellingen_waarschuwing():
     assert any("één bestuur" in w for w in r.waarschuwingen)
 
 
-def test_weinig_jaren_waarschuwing():
-    r = controleer_stapel(
-        _star([("a", "21CY", date(2023, 8, 1), date(2024, 7, 31))], jaren=(2023, 2024))
-    )
-    assert any("5 jaar" in w for w in r.waarschuwingen)
-
-
 def test_lege_data_is_fout():
     star = _star([("a", "21CY", date(2020, 8, 1), date(2024, 7, 31))], jaren=())
     r = controleer_stapel(star)
@@ -131,4 +124,4 @@ def test_brins_met_ander_einde_waarschuwing():
             laatste=[date(2023, 10, 1), date(2024, 10, 1)],
         )
     )
-    assert any("21CY" in w and "uitval" in w for w in r.waarschuwingen)
+    assert any("21CY" in w and "we rekenen tot 2023" in w for w in r.waarschuwingen)

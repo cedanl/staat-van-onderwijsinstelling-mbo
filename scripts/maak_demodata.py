@@ -1,8 +1,9 @@
-"""Maak nep-RO-bestanden voor de demo: één instelling, zes schooljaren.
+"""Maak nep-RO-bestanden voor de demo: één instelling, tien schooljaren.
 
 Verzonnen studenten, geen echte personen. Vast zaadgetal, dus elke run geeft
-dezelfde bestanden. Een RO per twee schooljaren (2020-2021 t/m
-2024-2025), zoals DUO ze levert.
+dezelfde bestanden. Een RO per twee schooljaren (2016-2017 t/m
+2025-2026), zoals DUO ze levert. De studenten stapelen (n1 naar n2, n2 naar n3,
+n3 naar n4), stromen op en af en volgen een crebo-vernieuwing.
 
     uv run python scripts/maak_demodata.py
 """
@@ -13,18 +14,18 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
 
-DOEL = Path(__file__).parent.parent / "demodata"
-EERSTE_JAAR = 2020
+DOEL = Path(__file__).parent.parent / "src" / "staat_mbo" / "demodata"
+EERSTE_JAAR = 2016
 LAATSTE_JAAR = 2025  # laatste schooljaar (2025-2026)
 AANMAAK = date(2026, 10, 2)
 
 ## BRIN → (aanbieder, locatie, instroom per jaar, opleidingen (crebo, niveau)).
-## Eén instelling: drie RO's van twee jaar geven samen zes schooljaren.
+## Eén instelling: vijf RO's van twee jaar geven samen tien schooljaren.
 INSTELLINGEN = {
     "27DV": (
         "100A501",
         "101X591",
-        310,
+        175,
         [
             (25655, 4),
             (25475, 3),
@@ -43,6 +44,48 @@ INSTELLINGEN = {
 DUUR = {1: 1, 2: 2, 3: 3, 4: 3}
 ## Uitschrijfredenen (codes uit de demo-RO's): 08 diploma, 02 overstap, 01 uitval.
 REDEN_DIPLOMA, REDEN_WISSEL, REDEN_UITVAL = "08", "02", "01"
+## Kans op uitval per niveau en per opleiding erbovenop (sommige opleidingen
+## doen het beter, andere slechter dan de norm).
+UITVAL = {1: 0.32, 2: 0.24, 3: 0.20, 4: 0.20}
+KWALITEIT = {
+    25192: 0.12,
+    25191: 0.20,
+    25655: 0.18,
+    25167: -0.05,
+    25475: -0.04,
+    25187: -0.04,
+}
+## Kansen op op- en afstromen zonder diploma en op stapelen na een diploma.
+P_OPSTROMEN = {1: 0.0, 2: 0.07, 3: 0.06, 4: 0.0}
+P_AFSTROMEN = {1: 0.0, 2: 0.05, 3: 0.05, 4: 0.04}
+P_STAPELEN = {1: 0.55, 2: 0.30, 3: 0.22, 4: 0.0}
+## Crebo-vernieuwing: wie vanaf dit jaar begint, start op het opvolgende crebo.
+## De opvolgers staan ook in de referentiedata van de bekostigingsbestanden.
+OPVOLGER = {
+    25132: 25877,
+    25167: 25808,
+    25187: 25998,
+    25191: 27015,
+    25192: 25999,
+    25225: 25883,
+    25250: 25740,
+    25475: 25780,
+    25498: 25960,
+    25655: 27145,
+    25669: 27113,
+}
+VERNIEUWD = {
+    25132: 2019,
+    25167: 2021,
+    25187: 2020,
+    25191: 2022,
+    25192: 2018,
+    25225: 2023,
+    25475: 2019,
+    25498: 2021,
+    25655: 2022,
+    25669: 2020,
+}
 
 
 @dataclass
@@ -63,6 +106,8 @@ class Student:
     brin: str
     geboortedatum: date
     geslacht: str
+    wissels: int = 0
+    stapels: int = 0
     inschrijvingen: list[Inschrijving] = field(default_factory=list)
 
 
@@ -74,6 +119,18 @@ def _kans(rng: random.Random, p: float) -> bool:
     return rng.random() < p
 
 
+def _code(crebo: int, begin: date) -> int:
+    """Crebo-vernieuwing: wie vanaf het vernieuwingsjaar begint, start op het nieuwe crebo."""
+    jaar = VERNIEUWD.get(crebo)
+    return OPVOLGER[crebo] if jaar is not None and begin.year >= jaar else crebo
+
+
+def _na_einde(einde: date) -> date:
+    """Begin van een vervolgopleiding: 1 augustus, of de dag na het einde als dat later is."""
+    start = date(einde.year, 8, 1)
+    return start if einde < start else einde + timedelta(days=1)
+
+
 def _volg_opleiding(
     rng: random.Random,
     student: Student,
@@ -82,56 +139,68 @@ def _volg_opleiding(
     traject: str,
     begin: date,
     trend: float,
-    mag_wisselen: bool,
     opleidingen: list[tuple[int, int]],
 ) -> None:
+    """Eén inschrijving en wat daarna komt: uitval, wissel, op- of afstromen, diploma, stapelen."""
     duur = DUUR[niveau] + (1 if niveau == 4 and _kans(rng, 0.4) else 0)
     gepland = date(begin.year + duur, 7, 31)
     ins = Inschrijving(
         volgnummer=len(student.inschrijvingen) + 1,
-        crebo=crebo,
+        crebo=_code(crebo, begin),
         leertraject=traject,
         begin=begin,
         gepland=gepland,
     )
     student.inschrijvingen.append(ins)
 
+    def vervolg(nieuw_niveau: int, na: date) -> None:
+        kandidaten = [o for o in opleidingen if o[1] == nieuw_niveau and o[0] != crebo]
+        if not kandidaten:
+            return
+        nieuw, nieuw_niveau = rng.choice(kandidaten)
+        _volg_opleiding(
+            rng, student, nieuw, nieuw_niveau, traject, na, trend, opleidingen
+        )
+
     ## Lagere niveaus vallen vaker uit; de trend verbetert de laatste jaren.
-    p_uitval = {1: 0.30, 2: 0.22, 3: 0.16, 4: 0.12}[niveau] - trend
-    p_wissel = 0.12 if mag_wisselen else 0.0
+    p_uitval = max(0.03, UITVAL[niveau] + KWALITEIT.get(crebo, 0.0) - trend)
+    mag_wisselen = student.wissels == 0
+    p_op = P_OPSTROMEN[niveau] if mag_wisselen else 0.0
+    p_af = P_AFSTROMEN[niveau] if mag_wisselen else 0.0
+    p_zij = 0.05 if mag_wisselen else 0.0
     keuze = rng.random()
     if keuze < p_uitval:
         jaren = 1 if _kans(rng, 0.65) else rng.randint(2, max(2, duur))
         ins.einde = begin + timedelta(days=rng.randint(60, 300) + 365 * (jaren - 1))
         ins.reden = REDEN_UITVAL
         return
-    if keuze < p_uitval + p_wissel:
-        ## Wissel halverwege of aan het eind van het eerste jaar.
-        ins.einde = date(begin.year + 1, rng.choice([1, 7, 7]), 31)
-        ins.reden = REDEN_WISSEL
-        andere = [o for o in opleidingen if o[0] != crebo]
-        nieuw, nieuw_niveau = rng.choice(andere)
-        nieuw_begin = ins.einde + timedelta(days=1)
-        _volg_opleiding(
-            rng,
-            student,
-            nieuw,
-            nieuw_niveau,
-            traject,
-            nieuw_begin,
-            trend,
-            False,
-            opleidingen,
-        )
-        return
-    ## Diploma: meestal op tijd, soms een jaar of twee later.
+    keuze -= p_uitval
+    for p, nieuw_niveau in (
+        (p_op, niveau + 1),
+        (p_af, niveau - 1),
+        (p_zij, niveau),
+    ):
+        if keuze < p:
+            ## Wissel zonder diploma, halverwege of aan het eind van het eerste jaar.
+            ins.einde = date(begin.year + 1, rng.choice([1, 7, 7]), 31)
+            ins.reden = REDEN_WISSEL
+            student.wissels += 1
+            vervolg(nieuw_niveau, ins.einde + timedelta(days=1))
+            return
+        keuze -= p
+    ## Diploma: meestal op tijd, soms een jaar of twee later, soms in augustus of september.
     vertraging = rng.choices([0, 1, 2], weights=[70, 22, 8])[0]
-    diploma = date(gepland.year + vertraging, rng.choice([6, 7]), rng.randint(1, 28))
+    maand = rng.choice([6, 7, 7, 7, 7, 8, 9])
+    diploma = date(gepland.year + vertraging, maand, rng.randint(1, 28))
     ins.diploma = diploma
     ins.einde = diploma + timedelta(days=rng.randint(0, 20))
     ins.reden = REDEN_DIPLOMA
     if vertraging:
         ins.gepland = date(diploma.year, 7, 31)
+    ## Stapelen: na het diploma meteen door op het niveau erboven.
+    if student.stapels < 2 and _kans(rng, P_STAPELEN[niveau]):
+        student.stapels += 1
+        vervolg(niveau + 1, _na_einde(ins.einde))
 
 
 def maak_studenten(rng: random.Random) -> list[Student]:
@@ -167,7 +236,6 @@ def maak_studenten(rng: random.Random) -> list[Student]:
                     "BBL" if bbl else "BOL",
                     begin,
                     trend,
-                    True,
                     opleidingen,
                 )
                 studenten.append(student)

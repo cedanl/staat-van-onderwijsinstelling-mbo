@@ -8,6 +8,8 @@ license = { text = "MIT" }
 authors = [{ name = "CEDA", email = "ceda@cedanl.org" }]
 dependencies = [
     "polars>=1.0",
+    "streamlit>=1.40",
+    "altair>=5.0",
     "mbo-bekostiging-bestanden",
 ]
 

@@ -1077,8 +1077,10 @@ name = "staat-mbo"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "altair" },
     { name = "mbo-bekostiging-bestanden" },
     { name = "polars" },
+    { name = "streamlit" },
 ]
 
 [package.dev-dependencies]
@@ -1093,8 +1095,10 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "altair", specifier = ">=5.0" },
     { name = "mbo-bekostiging-bestanden", git = "https://github.com/cedanl/mbo-bekostiging-bestanden?rev=05d5c5be33a68b1f7b7a53c57df22cb3a46a3063" },
     { name = "polars", specifier = ">=1.0" },
+    { name = "streamlit", specifier = ">=1.40" },
 ]
 
 [package.metadata.requires-dev]

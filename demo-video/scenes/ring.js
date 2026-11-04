@@ -1,9 +1,9 @@
 // Kader om het uitgelegde element, en een controle dat het kader niets anders raakt.
 // Ondertitels staan niet in de pagina maar in een balk onder de video (stitch.py),
 // zodat ze nooit een knop, tekst of grafiek afdekken.
-({box, kleur, selectors}) => {
+({box, kleur, selectors, pad = 4, rand = 3}) => {
   document.querySelectorAll('.__a').forEach(e => e.remove());
-  const P = 4, RAND = 3;
+  const P = pad, RAND = rand;
   const ring = document.createElement('div');
   ring.className = '__a';
   ring.style.cssText =
@@ -25,7 +25,9 @@
     if (r.width < 2 || r.height < 2 || r.bottom < 0 || r.top > innerHeight) continue;
     if (binnen(r) || omvat(r)) continue;
     if (r.left < k.r && r.right > k.l && r.top < k.b && r.bottom > k.t) {
-      geraakt.push((e.id ? '#' + e.id : e.tagName + '.' + e.className).slice(0, 60));
+      geraakt.push((e.id ? '#' + e.id : e.tagName + '.' + e.className).slice(0, 40) +
+        ' "' + (e.innerText || '').slice(0, 30) + '" ' + Math.round(r.top) + '-' + Math.round(r.bottom) +
+        ' (kader ' + Math.round(box.y) + '-' + Math.round(box.y + box.height) + ')');
     }
   }
   return geraakt;
