@@ -1,48 +1,58 @@
-"""Invoer → gecontroleerde 1CHO-vorm, met meldingen voor de gebruiker."""
+"""Invoer → analyse op schijf: meldingen, tussenlaag en de tabellen van ``staat``."""
 
 from pathlib import Path
 
-from staat_mbo.bron import InvoerFout, laad_star
-from staat_mbo.duur import (
-    MIN_INSCHRIJVINGEN_DUUR,
-    nominale_duur,
-    opleidingen_met_standaardduur,
-)
-from staat_mbo.naar_1cho import naar_1cho, schrijf_1cho
-from staat_mbo.stapelcontrole import Stapelrapport, controleer_stapel
+from staat_mbo.analyse import Analyse, bereken, maak_analyse
 
-BESTAND_1CHO = "1cho_mbo.csv"
 BESTAND_MELDINGEN = "meldingen.txt"
 BESTAND_RAPPORT = "stapelcontrole.json"
+BESTAND_PEILMOMENTEN = "peilmomenten.parquet"
+BESTAND_DIPLOMAS = "diplomas.parquet"
+BESTANDEN_STAAT = {
+    "studiesucces": "studiesucces.csv",
+    "cohorten": "cohorten.csv",
+    "loopbanen": "loopbanen.csv",
+}
 
 
-def samenvoegen(invoer: list[Path], uitvoer: Path) -> Stapelrapport:
-    """Voeg de invoer samen tot ``1cho_mbo.csv`` met meldingen en rapport.
-
-    Meldingen en rapport worden altijd geschreven, het 1CHO-bestand alleen
-    als het gelukt is.
-    """
-    uitvoer.mkdir(parents=True, exist_ok=True)
-    (uitvoer / BESTAND_1CHO).unlink(missing_ok=True)
-    try:
-        star = laad_star(invoer, uitvoer / "werk")
-        rapport = controleer_stapel(star)
-        if rapport.ok:
-            duur = nominale_duur(star)
-            df = naar_1cho(star, duur)
-            zonder, totaal = opleidingen_met_standaardduur(df, duur)
-            if zonder:
-                rapport.waarschuwingen.append(
-                    f"{zonder} van de {totaal} opleidingen (per leerweg) hebben minder "
-                    f"dan {MIN_INSCHRIJVINGEN_DUUR} inschrijvingen om de nominale duur "
-                    "uit de geplande einddatum te halen; daar geldt de standaardduur "
-                    "per niveau (1, 2, 3 of 4 jaar)."
-                )
-            schrijf_1cho(df, uitvoer / BESTAND_1CHO)
-    except InvoerFout as e:
-        rapport = Stapelrapport([], [], [], 0, fouten=[str(e)])
+def _schrijf_meldingen(a: Analyse, uitvoer: Path) -> None:
     (uitvoer / BESTAND_MELDINGEN).write_text(
-        "\n".join(rapport.meldingen()) + "\n", encoding="utf-8"
+        "\n".join(a.regels()) + "\n", encoding="utf-8"
     )
-    (uitvoer / BESTAND_RAPPORT).write_text(rapport.naar_json(), encoding="utf-8")
-    return rapport
+    (uitvoer / BESTAND_RAPPORT).write_text(a.rapport.naar_json(), encoding="utf-8")
+
+
+def _begin(invoer: list[Path], uitvoer: Path, oud: list[str]) -> Analyse:
+    uitvoer.mkdir(parents=True, exist_ok=True)
+    for naam in oud:
+        (uitvoer / naam).unlink(missing_ok=True)
+    return maak_analyse(invoer, uitvoer / "werk")
+
+
+def samenvoegen(invoer: list[Path], uitvoer: Path) -> Analyse:
+    """Voeg de invoer samen tot de mbo-tussenlaag, met meldingen en rapport.
+
+    Meldingen en rapport worden altijd geschreven, de tussenlaag
+    (``peilmomenten.parquet`` en ``diplomas.parquet``) alleen als het gelukt is.
+    Die bestanden bevatten pseudoniemen: behandel ze als persoonsgegevens.
+    """
+    a = _begin(invoer, uitvoer, [BESTAND_PEILMOMENTEN, BESTAND_DIPLOMAS])
+    if a.ok:
+        a.peilmomenten.write_parquet(uitvoer / BESTAND_PEILMOMENTEN)
+        a.diplomas.write_parquet(uitvoer / BESTAND_DIPLOMAS)
+    _schrijf_meldingen(a, uitvoer)
+    return a
+
+
+def staat(invoer: list[Path], uitvoer: Path) -> Analyse:
+    """Bereken de indicatoren, cohorten en loopbanen en schrijf ze als CSV.
+
+    De CSV's bevatten alleen geaggregeerde cijfers.
+    """
+    a = _begin(invoer, uitvoer, list(BESTANDEN_STAAT.values()))
+    if a.ok:
+        resultaten = bereken(a)
+        for veld, naam in BESTANDEN_STAAT.items():
+            getattr(resultaten, veld).write_csv(uitvoer / naam)
+    _schrijf_meldingen(a, uitvoer)
+    return a

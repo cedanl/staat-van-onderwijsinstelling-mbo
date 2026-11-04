@@ -3,7 +3,6 @@ import subprocess
 
 import pytest
 
-from staat_mbo.cli import main
 from staat_mbo.r import RFout, controleer_staat1cho, r_env, script_pad, vind_rscript
 from tests.conftest import RUW
 
@@ -24,16 +23,6 @@ def test_geen_r_duidelijke_fout(monkeypatch):
     monkeypatch.setattr("staat_mbo.r._WINDOWS_R", "Z:/bestaat-niet/R")
     with pytest.raises(RFout, match="R is niet gevonden"):
         vind_rscript()
-
-
-@pytest.mark.skipif(not heeft_r, reason="R niet geïnstalleerd")
-def test_staat_op_demodata(ingebouwde_sleutel, tmp_path):
-    invoer = [str(p) for p in sorted(RUW.iterdir())]
-    assert main(["samenvoegen", *invoer, "--uitvoer", str(tmp_path / "s")]) == 0
-    csv = str(tmp_path / "s" / "1cho_mbo.csv")
-    assert main(["staat", csv, "--uitvoer", str(tmp_path / "o")]) == 0
-    assert list((tmp_path / "o").rglob("Benchmarkrapport_*.xlsx"))
-    assert list((tmp_path / "o").rglob("Indicatoren_1cHO_*.RDS"))
 
 
 @pytest.mark.skipif(not heeft_r, reason="R niet geïnstalleerd")

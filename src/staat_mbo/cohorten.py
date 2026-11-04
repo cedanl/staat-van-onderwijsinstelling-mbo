@@ -211,7 +211,7 @@ def rendement(
     )
 
 
-def _percentage(vlag: str) -> pl.Expr:
+def percentage_waar(vlag: str) -> pl.Expr:
     """Percentage True van de waarneembare (niet-null) rijen; null zonder rijen."""
     waarneembaar = pl.col(vlag).drop_nulls()
     return (
@@ -235,12 +235,12 @@ def rendement_per_groep(df: pl.DataFrame, per: list[str] | None = None) -> pl.Da
             pl.col("Duur_bron").first(),
             pl.len().cast(pl.Int64).alias("Instroom"),
             pl.col("Nominaal").sum().cast(pl.Int64).alias("Nominaal_aantal"),
-            _percentage("Nominaal").alias("Nominaal_percentage"),
+            percentage_waar("Nominaal").alias("Nominaal_percentage"),
             pl.col("Nominaal_plus_1")
             .sum()
             .cast(pl.Int64)
             .alias("Nominaal_plus_1_aantal"),
-            _percentage("Nominaal_plus_1").alias("Nominaal_plus_1_percentage"),
+            percentage_waar("Nominaal_plus_1").alias("Nominaal_plus_1_percentage"),
             pl.col("In_eigen_opleiding").sum().cast(pl.Int64).alias("In_eigen_aantal"),
             pl.col("Nominaal")
             .is_null()

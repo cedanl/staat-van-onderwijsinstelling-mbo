@@ -29,3 +29,12 @@ def demodata_star(tmp_path_factory):
 
     demodata = Path(__file__).parent.parent / "demodata"
     return laad_star([demodata], tmp_path_factory.mktemp("demodata"))
+
+
+@pytest.fixture(scope="session")
+def demodata_analyse(tmp_path_factory):
+    """Analyse van de demodata, één keer per testsessie gebouwd."""
+    from staat_mbo.analyse import maak_analyse
+
+    demodata = Path(__file__).parent.parent / "demodata"
+    return maak_analyse([demodata], tmp_path_factory.mktemp("analyse"))
