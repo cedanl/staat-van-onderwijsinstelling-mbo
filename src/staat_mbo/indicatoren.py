@@ -8,6 +8,7 @@ leerweg) een teller en een noemer per jaartijdvak.
 from datetime import date
 
 import polars as pl
+from mbo_bekostiging_bestanden.indicatoren import norm_voor
 from mbo_bekostiging_bestanden.waardenlijsten import (
     leertrajecten_buiten_indicatorpopulatie,
 )
@@ -225,4 +226,121 @@ def startersresultaat(
         .agg(pl.col("Teller").sum(), pl.col("Noemer").sum())
         .select([*_RESULTAAT, "Terugblik"])
         .sort(["Jaartijdvak", "Opleidingcode", "Leertraject"])
+    )
+
+
+## Onder deze noemer tonen we geen percentage (privacy en betrouwbaarheid).
+MIN_NOEMER = 12
+GROEPEN = {
+    "instelling": [],
+    "niveau": ["Niveau"],
+    "opleiding": ["Opleidingcode", "Niveau"],
+    "opleiding_leerweg": ["Opleidingcode", "Niveau", "Leertraject"],
+}
+_JAREN = {"jr": _jaren_jr_dr, "dr": _jaren_jr_dr, "sr": _jaren_sr}
+
+
+def waarneembare_jaren(indicator: str, w: Waarneming) -> list[int]:
+    """Jaartijdvakken t waarvoor de indicator te berekenen is."""
+    return _JAREN[indicator](w)
+
+
+def volledig(indicator: str, w: Waarneming, t: int) -> bool:
+    """Is het cijfer van jaartijdvak t volledig (ondergrens of verkorte terugblik)?"""
+    if indicator == "dr":
+        return dr_volledig(w, t)
+    if indicator == "sr":
+        return sr_terugblik(w, t) == STARTERS_JAREN_TERUG
+    return True
+
+
+def _label(t: int) -> str:
+    return f"{t}-{t + 1}"
+
+
+def driejaarscijfer(
+    eenjaars: pl.DataFrame, indicator: str, w: Waarneming, groep: str
+) -> pl.DataFrame:
+    """Driejaarscijfer per groep en norm (ontwerp §5.4, regeling art. 4 lid 2).
+
+    ``eenjaars`` is de uitvoer van jaar-, diploma- of startersresultaat.
+    Voor elk jaartijdvak t waarvan t-2, t-1 en t waarneembaar zijn, tellen we de
+    tellers en noemers van die drie jaren op. Een jaar zonder studenten in de
+    groep telt als 0/0. ``indicator`` is ``"jr"``, ``"dr"`` of ``"sr"``;
+    ``groep`` een sleutel van [GROEPEN].
+    """
+    if groep not in GROEPEN:
+        raise ValueError(f"Onbekende groep: {groep!r}")
+    sleutel = GROEPEN[groep]
+    jaren = set(waarneembare_jaren(indicator, w))
+    delen = []
+    for t in sorted(jaren):
+        if not {t - 2, t - 1} <= jaren:
+            continue
+        venster = eenjaars.filter(pl.col("Jaartijdvak").is_between(t - 2, t))
+        som = [pl.col("Teller").sum(), pl.col("Noemer").sum()]
+        deel = venster.group_by(sleutel).agg(som) if sleutel else venster.select(som)
+        delen.append(
+            deel.with_columns(
+                pl.lit(t, dtype=pl.Int32).alias("Jaartijdvak"),
+                pl.lit(f"{_label(t - 2)} t/m {_label(t)}").alias("Periode"),
+                pl.lit(all(volledig(indicator, w, y) for y in (t - 2, t - 1, t))).alias(
+                    "Volledig"
+                ),
+            )
+        )
+    schema = {
+        "Opleidingcode": pl.Utf8,
+        "Niveau": pl.Int32,
+        "Leertraject": pl.Utf8,
+    }
+    if not delen:
+        delen = [
+            pl.DataFrame(
+                schema={
+                    **{k: v for k, v in schema.items() if k in sleutel},
+                    "Teller": pl.Int64,
+                    "Noemer": pl.Int64,
+                    "Jaartijdvak": pl.Int32,
+                    "Periode": pl.Utf8,
+                    "Volledig": pl.Boolean,
+                }
+            )
+        ]
+    normen = {n: norm_voor(indicator, n, "voldoende") for n in NIVEAUS}
+    niveau = pl.col("Niveau") if "Niveau" in sleutel else pl.lit(None, pl.Int32)
+    percentage = pl.col("Teller") / pl.col("Noemer") * 100
+    return (
+        pl.concat(delen)
+        .filter(pl.col("Noemer") > 0)
+        .with_columns(
+            *(
+                pl.lit(None, dtype).alias(naam)
+                for naam, dtype in schema.items()
+                if naam not in sleutel
+            ),
+            pl.lit(indicator.upper()).alias("Indicator"),
+            pl.lit(groep).alias("Groep"),
+            percentage.round(1).alias("Percentage"),
+            niveau.replace_strict(normen, default=None, return_dtype=pl.Int64).alias(
+                "Norm"
+            ),
+            (pl.col("Noemer") < MIN_NOEMER).alias("Te_klein"),
+        )
+        .with_columns((percentage < pl.col("Norm")).alias("Onder_norm"))
+        .select(
+            "Indicator",
+            "Jaartijdvak",
+            "Periode",
+            "Groep",
+            *schema,
+            "Teller",
+            "Noemer",
+            "Percentage",
+            "Norm",
+            "Onder_norm",
+            "Te_klein",
+            "Volledig",
+        )
+        .sort(["Jaartijdvak", *sleutel], nulls_last=True)
     )
