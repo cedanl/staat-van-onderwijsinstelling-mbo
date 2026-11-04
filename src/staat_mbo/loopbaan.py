@@ -96,3 +96,36 @@ def diplomas(star: dict[str, pl.DataFrame]) -> pl.DataFrame:
         .sort(_P, "Opleidingcode", "Datum", "BRIN", "Leertraject", nulls_last=True)
         .unique([_P, "Opleidingcode", "Datum"], keep="first", maintain_order=True)
     )
+
+
+def opvolgers(star: dict[str, pl.DataFrame]) -> dict[str, str]:
+    """Crebo naar het nieuwste crebo dat het opvolgt, uit ``dim_opleiding``.
+
+    Een lege opvolger, 0 en het eigen crebo betekenen "geen opvolger". Ketens
+    (A naar B naar C) lopen door tot het einde; een kring stopt vanzelf.
+    """
+    dim = star["dim_opleiding"].select(
+        pl.col("Opleidingcode").cast(pl.Utf8),
+        pl.col("Opleiding_opvolger").cast(pl.Utf8).str.strip_chars().alias("Opvolger"),
+    )
+    direct = {
+        crebo: volger
+        for crebo, volger in dim.drop_nulls().iter_rows()
+        if volger not in ("", "0", crebo)
+    }
+
+    def einde(crebo: str) -> str:
+        gezien = {crebo}
+        while (volger := direct.get(crebo)) is not None and volger not in gezien:
+            crebo = volger
+            gezien.add(crebo)
+        return crebo
+
+    return {crebo: einde(crebo) for crebo in direct}
+
+
+def canoniek(df: pl.DataFrame, kaart: dict[str, str] | None) -> pl.DataFrame:
+    """Vervang ``Opleidingcode`` door het nieuwste crebo uit ``kaart``."""
+    if not kaart:
+        return df
+    return df.with_columns(pl.col("Opleidingcode").replace(kaart))
