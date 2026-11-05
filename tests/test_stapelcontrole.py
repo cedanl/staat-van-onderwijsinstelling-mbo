@@ -107,11 +107,13 @@ def test_meldingen_beginnen_met_resultaat():
     assert r.meldingen()[0].startswith("Gelukt")
 
 
-def test_demo_stapel(demo_star):
+def test_demo_stapel_zonder_gedeelde_1_oktober_is_niet_gelukt(demo_star):
+    """De fixtures mengen drie BRIN's zonder gedeelde 1 oktober."""
     star, _ = demo_star
     r = controleer_stapel(star)
-    assert r.ok
+    assert not r.ok
     assert r.brins == ["21CY", "25LX", "27DV"]
+    assert "geen 1 oktober gemeen" in r.meldingen()[1]
 
 
 def test_brins_met_ander_einde_waarschuwing():
@@ -125,3 +127,38 @@ def test_brins_met_ander_einde_waarschuwing():
         )
     )
     assert any("21CY" in w and "we rekenen tot 2023" in w for w in r.waarschuwingen)
+
+
+def test_brin_die_later_begint_waarschuwing():
+    r = controleer_stapel(
+        _star(
+            [
+                ("a", "21CY", date(2016, 8, 1), date(2024, 7, 31)),
+                ("b", "25LX", date(2022, 8, 1), date(2024, 7, 31)),
+            ]
+        )
+    )
+    assert any(
+        "25LX" in w and "1 oktober 2022" in w and "vanaf 2022" in w
+        for w in r.waarschuwingen
+    )
+    assert not any("21CY beginnen" in w for w in r.waarschuwingen)
+
+
+def test_brins_zonder_gedeelde_1_oktober_is_een_fout():
+    r = controleer_stapel(
+        _star(
+            [
+                ("a", "21CY", date(2020, 8, 1), date(2022, 7, 31)),
+                ("b", "25LX", date(2023, 8, 1), date(2024, 7, 31)),
+            ],
+            laatste=[date(2021, 10, 1), date(2023, 10, 1)],
+        )
+    )
+    assert not r.ok
+    assert any("geen 1 oktober gemeen" in f for f in r.fouten)
+
+
+def test_een_brin_geeft_geen_beginwaarschuwing():
+    r = controleer_stapel(_star([("a", "21CY", date(2020, 8, 1), date(2024, 7, 31))]))
+    assert r.waarschuwingen == []

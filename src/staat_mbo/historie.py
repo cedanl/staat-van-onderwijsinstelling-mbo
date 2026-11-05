@@ -129,6 +129,14 @@ def meldingen(w: Waarneming) -> list[Melding]:
         ),
         None,
     )
+    laatste = max(
+        (
+            t
+            for t in range(w.eerste_jaar, w.laatste_jaar + 1)
+            if w.reeks(t, t + _RENDEMENT_OKTOBERS - 1)
+        ),
+        default=None,
+    )
     if eerste is None:
         uit.append(
             Melding(
@@ -142,7 +150,10 @@ def meldingen(w: Waarneming) -> list[Melding]:
         uit.append(
             Melding(
                 "info",
-                f"Rendement nominaal + 1 voor niveau 4 is pas te zien vanaf cohort {eerste}.",
+                "Rendement nominaal + 1 voor niveau 4 (vier jaar plus één) is te "
+                f"zien voor cohort {eerste}"
+                + (f" t/m {laatste}" if laatste != eerste else "")
+                + "; latere cohorten lopen nog.",
             )
         )
     return uit

@@ -57,7 +57,8 @@ DEFINITIES = {
     ),
     "loopbaanstatus": (
         "Loopbaanstatus: waar een student van het cohort staat op 1 oktober na "
-        "1, 2 of 3 jaar, in negen vaste categorieën."
+        "1 jaar, na de nominale duur van de opleiding of een jaar daarna, in "
+        "negen vaste categorieën."
     ),
     "studiewissel": (
         "Studiewissel: zonder diploma naar een ander crebo op hetzelfde niveau. "
@@ -69,11 +70,11 @@ DEFINITIES = {
 ## Wat elke loopbaanstatus betekent, per categorie van ``cohorten.CATEGORIEEN``.
 CATEGORIE_TOELICHTING = {
     "Diploma, verder op hoger niveau": (
-        "Stapelen: diploma gehaald en een jaar later ingeschreven op een hoger "
-        "niveau. Telt niet als uitval of wissel."
+        "Stapelen: diploma gehaald en op het gekozen moment ingeschreven op een "
+        "hoger niveau. Telt niet als uitval of wissel."
     ),
     "Diploma, vertrokken": (
-        "Diploma gehaald en een jaar later niet meer bij de instelling."
+        "Diploma gehaald en op het gekozen moment niet meer bij de instelling."
     ),
     "Diploma, nog ingeschreven op hetzelfde of lager niveau": (
         "Diploma gehaald en toch weer ingeschreven op hetzelfde of een lager niveau."

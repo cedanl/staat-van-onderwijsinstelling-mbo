@@ -6,6 +6,7 @@ import streamlit as st
 
 from staat_mbo import overzicht as ov
 from staat_mbo import palet
+from staat_mbo.analyse import MOMENTEN
 from staat_mbo.app import huisstijl, ui
 from staat_mbo.cohorten import CATEGORIEEN
 from staat_mbo.definities import CATEGORIE_KLEUREN, CATEGORIE_TOELICHTING, DEFINITIES
@@ -122,12 +123,13 @@ ui.toon_dekkingsmeldingen(analyse)
 
 st.subheader("Loopbaanstatus na de start", help=DEFINITIES["loopbaanstatus"])
 links, midden, rechts = st.columns(3)
-jaren = links.radio(
-    "Na",
-    [1, 2, 3],
-    format_func=lambda k: f"na {k} jaar",
-    horizontal=True,
-    help="Gemeten op 1 oktober, zoveel jaar na de start van het cohort.",
+moment = links.radio(
+    "Moment",
+    MOMENTEN,
+    index=1,
+    help="Gemeten op 1 oktober, zoveel jaar na de start van het cohort. De "
+    "nominale duur hoort bij de opleiding (1 tot 4 jaar), zodat elk niveau "
+    "eerlijk de tijd krijgt om een diploma te halen.",
 )
 uitkomst = midden.selectbox("Toon", list(UITKOMSTEN))
 per = VERDELING[rechts.radio("Verdeel", list(VERDELING), horizontal=True)]
@@ -136,13 +138,14 @@ if uitkomst == "Studiewissel":
     st.caption(WISSEL_UITLEG)
     st.caption(DEFINITIES["studiewissel"])
 
-verdeling = ov.verdeling(loopbanen.filter(pl.col("Jaren") == jaren), per)
+op_moment = loopbanen.filter(pl.col("Moment") == moment)
+verdeling = ov.verdeling(op_moment, per)
 staafgrafiek(verdeling, per, UITKOMSTEN[uitkomst])
 
 st.markdown("**Verdeling in procenten** (elke rij telt op tot 100%)")
 ui.toon_tabel(
-    ov.verdeling_tabel(loopbanen.filter(pl.col("Jaren") == jaren), per),
-    f"loopbaanstatus_na_{jaren}_jaar",
+    ov.verdeling_tabel(op_moment, per),
+    "loopbaanstatus_" + moment.replace(" + ", "_plus_").replace(" ", "_"),
 )
 
 with st.expander("Wat betekenen de categorieën?"):

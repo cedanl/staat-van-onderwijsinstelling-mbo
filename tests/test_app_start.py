@@ -90,15 +90,7 @@ def test_start_toont_zes_kerncijfertegels_op_de_demodata(demodata_analyse):
     at.session_state[SESSIE_ANALYSE] = demodata_analyse
     at.run()
     assert not at.exception
-    assert [m.value for m in at.metric] == [
-        "67,9%",
-        "68,9%",
-        "80,7%",
-        "226",
-        "16,4%",
-        "22,5%",
-    ]
-    assert any("Indicatief" in i.value for i in at.info)
+    assert [m.value for m in at.metric] == ["1.743", "10", "564", "953", "11", "1"]
 
 
 def test_start_zonder_analyse_toont_geen_kerncijfers():

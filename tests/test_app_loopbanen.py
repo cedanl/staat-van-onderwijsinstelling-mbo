@@ -1,8 +1,10 @@
 from pathlib import Path
 
+import polars as pl
 import pytest
 from streamlit.testing.v1 import AppTest
 
+from staat_mbo.analyse import MOMENTEN
 from staat_mbo.app.ui import SESSIE_ANALYSE
 from staat_mbo.cohorten import CATEGORIEEN
 from staat_mbo.definities import CATEGORIE_KLEUREN as KLEUREN
@@ -21,9 +23,9 @@ def _tabellen(at):
     return {d.value.columns[0]: d.value for d in at.dataframe}
 
 
-@pytest.mark.parametrize("jaren", [1, 2, 3])
-def test_verdeling_telt_per_rij_op_tot_100_procent(pagina, jaren):
-    pagina.radio[0].set_value(jaren).run()
+@pytest.mark.parametrize("moment", MOMENTEN)
+def test_verdeling_telt_per_rij_op_tot_100_procent(pagina, moment):
+    pagina.radio[0].set_value(moment).run()
     assert not pagina.exception
     tabel = pagina.dataframe[0].value
     assert (tabel["Totaal"] == 100).all()
@@ -63,3 +65,20 @@ def test_matrix_zonder_diploma_en_percentage(pagina):
 def test_label_en_geen_exception(pagina):
     assert not pagina.exception
     assert any("Indicatief" in i.value for i in pagina.info)
+
+
+def test_na_nominale_duur_hebben_alle_niveaus_diplomas(demodata_analyse):
+    """Na een vast jaar heeft alleen entree een diploma; na de duur elk niveau."""
+    from staat_mbo.analyse import bereken
+
+    l = bereken(demodata_analyse).loopbanen.filter(
+        (pl.col("Moment") == "na nominale duur")
+        & pl.col("Status").is_in(CATEGORIEEN[:3])
+    )
+    per_niveau = l.group_by("Niveau").agg(pl.col("Aantal").sum())
+    assert set(per_niveau["Niveau"]) == {1, 2, 3, 4}
+    assert (per_niveau["Aantal"] > 20).all()
+
+
+def test_standaard_staat_het_moment_op_nominale_duur(pagina):
+    assert pagina.radio[0].value == "na nominale duur"

@@ -1,6 +1,6 @@
-"""Video + voice-over samenvoegen tot demo_final.mp4.
+"""Opname knippen tot demo_final.mp4, met ondertitels en zonder geluid.
 
-Elke audioclip start op het moment dat zijn stap in beeld komt
+Elke stap blijft zijn leestijd in beeld vanaf het moment dat hij begint
 (scenes/tijden.json). Wachttijd tussen stappen (rekenen, laden) wordt
 weggeknipt tot een korte overgang. De ondertitels staan in een balk onder het
 beeld van de app, zodat ze nooit iets in de app afdekken.
@@ -8,40 +8,36 @@ Aanroep: uv run python demo-video/stitch.py
 """
 
 import json
+import os
 import subprocess
 import sys
 import textwrap
-import wave
 from pathlib import Path
 
 DEMO = Path(__file__).parent
 sys.path.insert(0, str(DEMO))
-from stappen import STAPPEN
+from stappen import STAPPEN, leestijd
 
 TAKE = DEMO / "scenes" / "take.webm"
 UIT = DEMO / "demo_final.mp4"
-NA_STAP = 2.2  # seconden na de voice-over die in beeld blijven (klik, begin van laden)
+NA_STAP = 0.6  # seconden na de leestijd die in beeld blijven (klik, begin van laden)
 VOOR_STAP = 1.0  # seconden vóór de volgende stap
 EINDE = 2.0
 BALK = 120  # hoogte van de ondertitelbalk onder het beeld
-LETTER = r"C\:/Windows/Fonts/segoeuib.ttf"
-ONDERTITEL = {naam: sub for naam, sub, _ in STAPPEN}
-
-
-def duur(pad: Path) -> float:
-    with wave.open(str(pad), "rb") as f:
-        return f.getnframes() / f.getframerate()
+## Lettertype voor de ondertitels; standaard Segoe UI Bold van Windows.
+LETTER = os.environ.get("STAAT_MBO_LETTER", r"C\:/Windows/Fonts/segoeuib.ttf")
+ONDERTITEL = dict(STAPPEN)
 
 
 tijden = json.loads((DEMO / "scenes" / "tijden.json").read_text())["tijden"]
 start = max(0.0, tijden.pop("_klaar") - 0.3)
-stappen = [(naam, t, DEMO / "audio" / f"{naam}.wav") for naam, t in tijden.items()]
+stappen = [(naam, t, leestijd(ONDERTITEL[naam])) for naam, t in tijden.items()]
 
 ## Te bewaren stukken van de opname.
 stukken = []
 begin = start
-for i, (_, t, wav) in enumerate(stappen):
-    eind = t + duur(wav) + NA_STAP
+for i, (_, t, lees) in enumerate(stappen):
+    eind = t + lees + NA_STAP
     if i + 1 < len(stappen):
         volgende = stappen[i + 1][1]
         if volgende - VOOR_STAP > eind:
@@ -70,30 +66,24 @@ filters.append(
 )
 ## Balk onder het beeld met per stap de ondertitel.
 teksten = []
-for naam, t, wav in stappen:
-    pad = DEMO / "audio" / f"ondertitel_{naam}.txt"
+TEKSTMAP = DEMO / "ondertitels"
+TEKSTMAP.mkdir(exist_ok=True)
+for naam, t, lees in stappen:
+    pad = TEKSTMAP / f"{naam}.txt"
     ## Bytes: write_text maakt op Windows \r\n van een regeleinde, en ffmpeg
     ## tekent dat als een extra regel.
-    tekst = "\n".join(textwrap.wrap(ONDERTITEL[naam], 68))
+    tekst = "\n".join(textwrap.wrap(ONDERTITEL[naam], 90))
     pad.write_bytes(tekst.encode("utf-8"))
     van = nieuwe_tijd(t)
-    tot = van + duur(wav) + 0.7
+    tot = van + lees + 0.7
     tekstpad = pad.relative_to(DEMO.parent).as_posix()
     teksten.append(
         f"drawtext=fontfile='{LETTER}':textfile='{tekstpad}':fontsize=28:"
         "fontcolor=white:line_spacing=8:x=(w-text_w)/2:"
-        f"y=h-{BALK}+({BALK}-text_h)/2:enable='between(t,{van:.2f},{tot:.2f})'"
+        f"expansion=none:y=h-{BALK}+({BALK}-text_h)/2:enable='between(t,{van:.2f},{tot:.2f})'"
     )
 filters.append(f"[vc]pad=iw:ih+{BALK}:0:0:color=0x0f172a," + ",".join(teksten) + "[v]")
 invoer = ["-i", str(TAKE)]
-for i, (_, t, wav) in enumerate(stappen, start=1):
-    invoer += ["-i", str(wav)]
-    ms = int(nieuwe_tijd(t) * 1000)
-    filters.append(f"[{i}:a]adelay={ms}|{ms}[a{i}]")
-filters.append(
-    "".join(f"[a{i}]" for i in range(1, len(stappen) + 1))
-    + f"amix=inputs={len(stappen)}:normalize=0[a]"
-)
 
 subprocess.run(
     cwd=DEMO.parent,
@@ -107,8 +97,6 @@ subprocess.run(
         ";".join(filters),
         "-map",
         "[v]",
-        "-map",
-        "[a]",
         "-c:v",
         "libx264",
         "-preset",
@@ -117,10 +105,7 @@ subprocess.run(
         "24",
         "-pix_fmt",
         "yuv420p",
-        "-c:a",
-        "aac",
-        "-b:a",
-        "128k",
+        "-an",
         "-movflags",
         "+faststart",
         str(UIT),

@@ -1,13 +1,17 @@
-"""Neem de demovideo op: start, demodata, Studiesucces, Cohorten, Loopbanen, Over.
+"""Neem de demovideo op: upload, meldingen, tellingen op Start, Studiesucces, Cohorten, Loopbanen, Over.
 
-Start eerst de app (zie demo-video/README.md), dan:
+Start eerst de app zonder --invoer (zie demo-video/README.md), dan:
     uv run --group demo python demo-video/scenes/record.py
-Schrijft scenes/take.webm en scenes/tijden.json (start van elke stap).
-In de pagina staat alleen een kader om het uitgelegde element; de ondertitels
-komen in een balk onder de video (stitch.py), zodat niets wordt afgedekt.
-Raakt een kader een ander element, dan stopt de opname met een fout.
+De RO-bestanden uit src/staat_mbo/demodata gaan echt via de bestandskiezer naar
+binnen. Schrijft scenes/take.webm en scenes/tijden.json (start van elke stap).
+In de pagina staan een kader, een pijl en een chip bij het uitgelegde element;
+de ondertitels komen in een balk onder de video (stitch.py). Raakt het kader, de
+chip of de pijl een ander element, dan stopt de opname met een fout.
+STAAT_MBO_SHOTS=<map> bewaart een screenshot per stap; STAAT_MBO_DROOG=1 houdt
+elke stap kort vast (alleen om overlap te controleren).
 """
 
+import importlib.util
 import json
 import os
 import time
@@ -17,19 +21,45 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 DEMO = Path(__file__).parent.parent
-
 RAW = Path(__file__).parent
+_spec = importlib.util.spec_from_file_location("stappen", DEMO / "stappen.py")
+_stappen = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_stappen)
+CHIPS, WAARDEN, STUDIESUCCES = _stappen.CHIPS, _stappen.WAARDEN, _stappen.STUDIESUCCES
+DUREN = {naam: _stappen.leestijd(sub) for naam, sub in _stappen.STAPPEN}
+
 APP_URL = f"http://127.0.0.1:{os.environ.get('STAAT_MBO_POORT', '8599')}"
-VIEWPORT = {"width": 1280, "height": 720}
-DUREN = json.loads((DEMO / "audio" / "duren.json").read_text())
+VIEWPORT = {"width": 1600, "height": 900}
+DEMODATA = sorted((DEMO.parent / "src" / "staat_mbo" / "demodata").glob("RO_*.csv"))
+SHOTS = os.environ.get("STAAT_MBO_SHOTS")
+DROOG = bool(os.environ.get("STAAT_MBO_DROOG"))
+## Maak de pagina smaller: rechts blijft ruimte voor de chip.
+STIJL = (
+    "[data-testid=stMainBlockContainer]{max-width:none !important;"
+    "padding-left:24px !important;padding-right:300px !important;}"
+)
+INIT_JS = (
+    "document.addEventListener('DOMContentLoaded',()=>{"
+    "const s=document.createElement('style');"
+    f"s.textContent={json.dumps(STIJL)};document.head.appendChild(s);}});"
+)
 RING_JS = (RAW / "ring.js").read_text(encoding="utf-8")
-LEEG_JS = "() => document.querySelectorAll('.__a').forEach(e => e.remove())"
-## Elementen die een kader niet mag raken.
+LEEG_JS = "() => document.querySelectorAll('.__a,.__ruimte').forEach(e => e.remove())"
+## Lege ruimte onderaan de pagina, zodat een element hoog in beeld kan staan en de chip eronder past.
+RUIMTE_JS = """() => {
+  const b = document.querySelector("[data-testid='stMainBlockContainer'] > [data-testid='stVerticalBlock']");
+  const d = document.createElement('div');
+  d.className = '__ruimte';
+  d.style.height = '600px';
+  b.appendChild(d);
+}"""
+## Elementen die kader, chip en pijl niet mogen raken.
 ELEMENTEN = (
     "button:not([data-testid='stBaseButton-elementToolbar']), a:not([href^='#']), input, label, h1, h2, h3, p, li, "
-    "[data-testid='stMetric'], [data-testid='stAlert'], "
+    "[data-testid='stMetric'], [data-testid='stAlert'], [data-testid='stExpander'], "
     "[data-testid='stDataFrame'], [data-testid='stVegaLiteChart'], "
-    "[data-testid='stFileUploader'], [data-testid='stSidebarNav']"
+    "[data-testid='stFileUploader'], [data-testid='stSidebarNav'], "
+    "[data-testid='stSelectbox'], [data-testid='stMultiSelect'], [data-testid='stRadio']"
 )
 KLEUR = {"blauw": "#2563eb", "groen": "#16a34a", "oranje": "#ea580c"}
 HOOFD = "section[data-testid='stMain']"
@@ -78,20 +108,33 @@ class Opname:
         self.t0 = time.monotonic()
         self.tijden = {}
 
-    def stap(self, naam, target, kleur="blauw", actie=None, pad=4, rand=3):
-        """Kader om het element; houd vast zolang de voice-over duurt."""
+    def stap(self, naam, target, voor=None, actie=None, pad=4, rand=3, scrollen=True):
+        """Kader, pijl en chip bij het element; houd vast zolang de ondertitel leestijd nodig heeft."""
         locs = target if isinstance(target, list) else [target]
-        locs[0].evaluate("e => e.scrollIntoView({block:'center'})")
-        time.sleep(0.4)
-        ## Zet het hele kader in beeld: gecentreerd, of bovenaan als het te hoog is.
-        b = box(locs)
-        doel = 360 - b["height"] / 2 if b["height"] < 560 else 70
-        self.page.evaluate(
-            "([sel, d]) => document.querySelector(sel).scrollBy(0, d)",
-            [HOOFD, b["y"] - doel],
-        )
-        time.sleep(0.6)
-        geraakt = self.page.evaluate(
+        if voor:
+            voor()
+        ## Muis uit het beeld, anders opent een hulpballon bij een vraagteken.
+        self.page.mouse.move(1590, 890)
+        if scrollen:
+            self.page.evaluate(RUIMTE_JS)
+            locs[0].evaluate("e => e.scrollIntoView({block:'center'})")
+            time.sleep(0.4)
+            ## Zet het hele kader in beeld: gecentreerd, of bovenaan als het te hoog is.
+            b = box(locs)
+            hoog = VIEWPORT["height"]
+            if b["height"] >= hoog - 160:
+                doel = 70
+            elif b["height"] < 400:
+                doel = 220  # hoog in beeld, de chip kan eronder
+            else:
+                doel = hoog / 2 - b["height"] / 2
+            self.page.evaluate(
+                "([sel, d]) => document.querySelector(sel).scrollBy(0, d)",
+                [HOOFD, b["y"] - doel],
+            )
+            time.sleep(0.6)
+        label, toelichting, kleur = CHIPS.get(naam, (None, None, "blauw"))
+        res = self.page.evaluate(
             RING_JS,
             {
                 "box": box(locs),
@@ -99,12 +142,18 @@ class Opname:
                 "selectors": ELEMENTEN,
                 "pad": pad,
                 "rand": rand,
+                "label": label,
+                "tekst": toelichting,
+                "last": locs[-1].element_handle(),
             },
         )
-        if geraakt:
-            raise RuntimeError(f"Kader van '{naam}' raakt andere elementen: {geraakt}")
+        if res["geraakt"]:
+            raise RuntimeError(f"Annotatie van '{naam}' raakt iets: {res['geraakt']}")
+        print(f"  {naam}: chip {res['chip']}")
         self.tijden[naam] = time.monotonic() - self.t0
-        time.sleep(DUREN[naam] + 0.7)
+        if SHOTS:
+            self.page.screenshot(path=str(Path(SHOTS) / f"{naam}.png"))
+        time.sleep(0.5 if DROOG else DUREN[naam] + 0.7)
         self.page.evaluate(LEEG_JS)
         if actie:
             actie()
@@ -122,6 +171,38 @@ def naar_pagina(page, naam):
     time.sleep(1.0)
 
 
+def tegels(page):
+    """De zes tegels op Start (kolom met metric en toelichting), op volgorde."""
+    kol = page.locator(f"{HOOFD} [data-testid='stColumn']").filter(
+        has=page.locator("[data-testid='stMetric']")
+    )
+    assert kol.count() == 6, kol.count()
+    return [kol.nth(i) for i in range(6)]
+
+
+def controleer_waarde(naam, tegel, waarden=WAARDEN):
+    """Tekst en beeld moeten kloppen: de waarde uit het script staat echt op de pagina."""
+    tekst = tegel.get_by_test_id("stMetric").inner_text()
+    if waarden[naam] not in tekst:
+        raise RuntimeError(f"{naam}: verwacht {waarden[naam]}, op de pagina: {tekst!r}")
+
+
+def niveaufilter(page):
+    return page.locator("[data-testid='stSidebar'] [data-testid='stMultiSelect']").first
+
+
+def kies_niveau(page, optie):
+    """Kies een niveau in het filter; optie None wist het filter weer."""
+    kies = niveaufilter(page)
+    if optie is None:
+        kies.get_by_label("Clear all").click()
+    else:
+        klik(page, kies)
+        page.get_by_role("option", name=optie, exact=True).click()
+        page.keyboard.press("Escape")
+    rustig(page)
+
+
 def neem_op(page):
     o = Opname(page)
     page.goto(APP_URL)
@@ -130,45 +211,84 @@ def neem_op(page):
     )
     rustig(page)
     o.tijden["_klaar"] = time.monotonic() - o.t0
+    hoofd = page.locator(HOOFD)
 
-    o.stap("start", page.get_by_test_id("stFileUploader"))
-    knop = page.get_by_role("button", name="Probeer met demodata")
-    o.stap("demodata", knop, actie=lambda: klik(page, knop))
+    o.stap(
+        "start",
+        [
+            hoofd.get_by_role("heading", level=1),
+            hoofd.get_by_text("Kies al je RO- en TBG-i-bestanden").first,
+        ],
+    )
+    o.stap("privacy", hoofd.get_by_text("Persoonsnummers worden vervangen").first)
+
+    def upload():
+        page.locator("input[type='file']").set_input_files([str(p) for p in DEMODATA])
+        page.get_by_text(DEMODATA[0].name[:7]).first.wait_for(timeout=30000)
+        time.sleep(1.5)
+
+    o.stap("kies", page.get_by_test_id("stFileUploader"), voor=upload)
+    knop = page.get_by_role("button", name="Samenvoegen")
+    o.stap("samenvoegen", knop, actie=lambda: klik(page, knop))
     page.get_by_text("Gelukt").first.wait_for(timeout=180000)
+    page.get_by_text("In je bestanden").first.wait_for(timeout=180000)
     rustig(page)
-    o.stap("gelukt", page.get_by_test_id("stAlert").first, kleur="groen")
+    alerts = hoofd.get_by_test_id("stAlert")
+    o.stap(
+        "gelukt",
+        [alerts.first, hoofd.get_by_test_id("stMarkdown").filter(has_text="BRIN")],
+    )
+    o.stap("meldingen", [alerts.nth(1), alerts.nth(2)])
+
+    kaarten = tegels(page)
+    for i, naam in enumerate(
+        ("studenten", "schooljaren", "ingeschreven", "diplomas", "opleidingen", "brin")
+    ):
+        controleer_waarde(naam, kaarten[i])
+        o.stap(naam, kaarten[i], pad=2, rand=3)
 
     naar_pagina(page, "Studiesucces")
-    hoofd = page.locator(HOOFD)
     grafieken = hoofd.get_by_test_id("stVegaLiteChart")
-    o.stap("studiesucces", list(hoofd.get_by_test_id("stMetric").all()))
-    o.stap(
-        "indicatief",
-        hoofd.get_by_test_id("stAlert").first,
-        kleur="oranje",
-        pad=-2,
-        rand=2,
-    )
+    kaarten = tegels_studiesucces(page)
+    for naam, tegel in zip(("jaar", "diploma", "starters"), kaarten, strict=True):
+        controleer_waarde(naam, tegel, STUDIESUCCES)
+    o.stap("indicatoren", kaarten, pad=2)
     o.stap("tabel", hoofd.get_by_test_id("stDataFrame").first)
-    kopjes = (
-        "verloop-per-niveau",
-        "jaarresultaat",
-        "diplomaresultaat",
-        "startersresultaat",
-    )
     o.stap(
         "norm",
         [
-            *(hoofd.locator(f"#{i}") for i in kopjes),
-            *hoofd.get_by_test_id("stVegaLiteChart").all(),
+            hoofd.locator("#verloop-per-niveau"),
+            hoofd.locator("#jaarresultaat"),
+            grafieken.first,
         ],
+    )
+    o.stap(
+        "filter",
+        niveaufilter(page),
+        scrollen=False,
+        actie=lambda: kies_niveau(page, "Niveau 4"),
+    )
+    page.evaluate(
+        "() => document.querySelector(\"section[data-testid='stMain']\").scrollTo(0, 0)"
+    )
+    time.sleep(0.8)
+    o.stap(
+        "gefilterd",
+        tegels_studiesucces(page),
+        pad=2,
+        actie=lambda: kies_niveau(page, None),
     )
 
     naar_pagina(page, "Cohorten")
     o.stap(
-        "cohorten",
+        "instroomcohort",
+        [hoofd.locator("#instroom-per-cohort"), grafieken.first],
+    )
+    o.stap(
+        "rendement",
         [hoofd.locator("#rendement-per-cohort"), grafieken.nth(1)],
     )
+    o.stap("uitvalcohort", [hoofd.locator("#uitval"), grafieken.nth(2)])
 
     naar_pagina(page, "Loopbanen")
     o.stap(
@@ -195,11 +315,21 @@ def neem_op(page):
         pad=0,
         rand=2,
     )
-    page.evaluate("() => window.scrollTo({top: 0})")
+    page.evaluate(
+        "() => document.querySelector(\"section[data-testid='stMain']\").scrollTo(0, 0)"
+    )
     time.sleep(0.8)
-    o.stap("slot", page.get_by_test_id("stSidebarNav"))
+    o.stap("indicatief", hoofd.get_by_test_id("stAlert").first, pad=-2, rand=2)
     time.sleep(1.0)
     return o
+
+
+def tegels_studiesucces(page):
+    kol = page.locator(f"{HOOFD} [data-testid='stColumn']").filter(
+        has=page.locator("[data-testid='stMetric']")
+    )
+    assert kol.count() == 3, kol.count()
+    return [kol.nth(i) for i in range(3)]
 
 
 def main():
@@ -216,6 +346,7 @@ def main():
         ctx = browser.new_context(
             viewport=VIEWPORT, record_video_dir=str(RAW), record_video_size=VIEWPORT
         )
+        ctx.add_init_script(INIT_JS)
         page = ctx.new_page()
         o = neem_op(page)
         video = page.video.path()

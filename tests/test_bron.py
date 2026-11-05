@@ -91,3 +91,38 @@ def test_kapotte_zip_geeft_fout(tmp_path):
     kapot.write_bytes(b"geen zip")
     with pytest.raises(InvoerFout, match="datamodel.zip"):
         laad_star([kapot], tmp_path / "werk")
+
+
+def test_oud_datamodel_zegt_dat_het_te_oud_is(demo_star, tmp_path):
+    _, werkmap = demo_star
+    oud = tmp_path / "datamodel"
+    shutil.copytree(werkmap / "star" / "datamodel", oud)
+    (oud / "fact_inschrijving_schooljaar.parquet").unlink()
+    with pytest.raises(InvoerFout, match="oudere versie") as fout:
+        laad_star([oud], tmp_path / "werk")
+    assert "fact_inschrijving_schooljaar" in str(fout.value)
+
+
+def test_afgekeurd_bestand_noemt_de_reden(ingebouwde_sleutel, tmp_path):
+    from staat_mbo.analyse import DEMODATA
+
+    bron = min(DEMODATA.glob("RO_*"))
+    regels = bron.read_text(encoding="utf-8").splitlines()
+    ## De SLR-telling klopt niet meer: één ISP-rij te weinig.
+    weg = next(i for i, r in enumerate(regels) if r.startswith("ISP|"))
+    kapot = tmp_path / bron.name
+    kapot.write_text(
+        "\n".join(regels[:weg] + regels[weg + 1 :]) + "\n", encoding="utf-8"
+    )
+    with pytest.raises(InvoerFout, match="Reden: .*SLR") as fout:
+        laad_star([kapot], tmp_path / "werk")
+    assert "quality.json" not in str(fout.value)
+
+
+def test_los_parquet_zonder_datamodel_geeft_eigen_melding(tmp_path):
+    import polars as pl
+
+    los = tmp_path / "peilmomenten.parquet"
+    pl.DataFrame({"a": [1]}).write_parquet(los)
+    with pytest.raises(InvoerFout, match="geen RO, TBG-i of datamodel"):
+        laad_star([los], tmp_path / "werk")

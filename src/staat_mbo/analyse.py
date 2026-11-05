@@ -16,9 +16,7 @@ from mbo_bekostiging_bestanden.waardenlijsten import (
 import staat_mbo
 from staat_mbo import cohorten as coh
 from staat_mbo import indicatoren as ind
-from staat_mbo import overzicht as ov
 from staat_mbo.bron import InvoerFout, laad_star
-from staat_mbo.definities import CATEGORIE_TOELICHTING, DEFINITIES
 from staat_mbo.duur import (
     MIN_INSCHRIJVINGEN_DUUR,
     duur_per_opleiding,
@@ -34,8 +32,10 @@ DEMODATA = Path(staat_mbo.__file__).parent / "demodata"
 _P = "_persoon_id"
 _OPLEIDING = ["Opleidingcode", "Niveau", "Leertraject"]
 _COHORT = ["Cohort", *_OPLEIDING]
-## Loopbaanstatus wordt na 1, 2 en 3 jaar bepaald.
-LOOPBAAN_JAREN = (1, 2, 3)
+## Momenten waarop de loopbaanstatus wordt bepaald. Vaste jaren (1, 2, 3) werken
+## niet voor het mbo: een opleiding duurt 1 tot 4 jaar, dus na 1 jaar heeft alleen
+## entree een diploma. Daarom na 1 jaar en verder relatief aan de nominale duur.
+MOMENTEN = ("na 1 jaar", "na nominale duur", "na nominale duur + 1")
 
 
 @dataclass
@@ -92,6 +92,11 @@ def _opleidingen(star: dict[str, pl.DataFrame], kaart: dict[str, str]) -> pl.Dat
     return pl.concat([dim, erbij])
 
 
+def _jaren(w: Waarneming) -> list[int]:
+    """De 1 oktobers waarop we rekenen: binnen de dekking en niet in een gat."""
+    return [j for j in range(w.eerste_jaar, w.laatste_jaar + 1) if w.waarneembaar(j)]
+
+
 def _standaardduur_melding(pm: pl.DataFrame, duur: pl.DataFrame) -> list[Melding]:
     opleidingen = (
         pm.filter(
@@ -106,10 +111,11 @@ def _standaardduur_melding(pm: pl.DataFrame, duur: pl.DataFrame) -> list[Melding
     zonder = duur_per_opleiding(duur, opleidingen)["Duur_bron"].eq("standaard").sum()
     if not zonder:
         return []
+    werkwoord = "heeft" if zonder == 1 else "hebben"
     return [
         Melding(
             "info",
-            f"{zonder} van de {opleidingen.height} opleidingen (per leerweg) hebben "
+            f"{zonder} van de {opleidingen.height} crebo's per leerweg {werkwoord} "
             f"minder dan {MIN_INSCHRIJVINGEN_DUUR} inschrijvingen om de nominale duur "
             "uit de geplande einddatum te halen; daar geldt de standaardduur per "
             "niveau (1, 2, 3 of 4 jaar).",
@@ -133,6 +139,9 @@ def maak_analyse(invoer: list[Path], werkmap: Path) -> Analyse:
     except (InvoerFout, ValueError) as e:
         return Analyse(Stapelrapport([], [], [], 0, fouten=[str(e)]))
     pm, dip = peilmomenten(star), diplomas(star)
+    ## De samenvatting na "Gelukt" telt dezelfde jaren en studenten als de tegels.
+    rapport.schooljaren = _jaren(w)
+    rapport.aantal_studenten = pm.filter(pl.col("Jaar").is_in(_jaren(w)))[_P].n_unique()
     duur = nominale_duur(star)
     kaart = opvolgers(star)
     return Analyse(
@@ -199,9 +208,8 @@ def _uitval_na_duur(c: pl.DataFrame, r: pl.DataFrame, a: Analyse) -> pl.Series:
     return uit.alias("Uitval_duur")
 
 
-def _cohorten(a: Analyse, c: pl.DataFrame) -> pl.DataFrame:
+def _cohorten(a: Analyse, c: pl.DataFrame, r: pl.DataFrame) -> pl.DataFrame:
     """Rendement en uitval per cohort × opleiding, met de herkomst van de instroom."""
-    r = coh.rendement(c, a.diplomas, a.duur, a.waarneming, a.opvolgers)
     uit1 = coh.uitval(c, a.peilmomenten, a.diplomas, a.waarneming, 1, a.opvolgers)[
         "Uitval"
     ].alias("Uitval_1")
@@ -242,16 +250,42 @@ def _cohorten(a: Analyse, c: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def _loopbanen(a: Analyse, c: pl.DataFrame) -> pl.DataFrame:
-    """Aantal cohortrijen per cohort × opleiding × loopbaanstatus na 1, 2 en 3 jaar."""
+def _status_na(a: Analyse, c: pl.DataFrame, jaren: pl.Series) -> pl.Series:
+    """Loopbaanstatus van elke cohortrij na zijn eigen aantal jaren."""
+    uit = pl.Series("Status", [None] * c.height, dtype=pl.Utf8)
+    for k in sorted(jaren.drop_nulls().unique().to_list()):
+        s = coh.loopbaanstatus(
+            c, a.peilmomenten, a.diplomas, a.waarneming, k, a.opvolgers
+        )["Status"]
+        uit = pl.select(pl.when(jaren == k).then(s).otherwise(uit)).to_series()
+    return uit.alias("Status")
+
+
+def _loopbanen(a: Analyse, c: pl.DataFrame, r: pl.DataFrame) -> pl.DataFrame:
+    """Aantal cohortrijen per cohort × opleiding × moment × loopbaanstatus.
+
+    Momenten: na 1 jaar, na de nominale duur en na de nominale duur + 1 jaar
+    (``Duur`` uit het rendement, per opleiding en leerweg).
+    """
+    duur = r["Duur"]
+    jaren = {
+        MOMENTEN[0]: pl.Series([1] * c.height, dtype=pl.Int32),
+        MOMENTEN[1]: duur,
+        MOMENTEN[2]: duur + 1,
+    }
     delen = [
-        coh.loopbaanstatus(c, a.peilmomenten, a.diplomas, a.waarneming, k, a.opvolgers)
-        .group_by([*_COHORT, "Jaren", "Status"])
+        c.select(_COHORT)
+        .with_columns(
+            pl.lit(moment).alias("Moment"),
+            k.cast(pl.Int32).alias("Jaren"),
+            _status_na(a, c, k),
+        )
+        .group_by([*_COHORT, "Moment", "Jaren", "Status"])
         .len()
         .rename({"len": "Aantal"})
-        for k in LOOPBAAN_JAREN
+        for moment, k in jaren.items()
     ]
-    return pl.concat(delen).sort([*_COHORT, "Jaren", "Status"])
+    return pl.concat(delen).sort([*_COHORT, "Moment", "Status"])
 
 
 def _overgangen(a: Analyse) -> pl.DataFrame:
@@ -311,13 +345,15 @@ def bereken(a: Analyse) -> Resultaten:
                 "Opleidingcode": pl.Utf8,
                 "Niveau": pl.Int32,
                 "Leertraject": pl.Utf8,
+                "Moment": pl.Utf8,
                 "Jaren": pl.Int32,
                 "Status": pl.Utf8,
                 "Aantal": pl.UInt32,
             }
         )
     else:
-        cohorten, loopbanen = _cohorten(a, c), _loopbanen(a, c)
+        r = coh.rendement(c, a.diplomas, a.duur, a.waarneming, a.opvolgers)
+        cohorten, loopbanen = _cohorten(a, c, r), _loopbanen(a, c, r)
     return Resultaten(
         studiesucces=studiesucces(a),
         instroom=instroom,
@@ -362,123 +398,71 @@ class Kerncijfer:
     waarde: str
     ondertitel: str
     help: str | None = None
-    getal: float | None = None
 
 
-def _driejaar(r: Resultaten, indicator: str) -> tuple[float, str] | str:
-    """Laatste volledige driejaarscijfer van de instelling, of de reden zonder."""
-    d = r.studiesucces.filter(
-        (pl.col("Groep") == "instelling") & (pl.col("Indicator") == indicator)
-    )
-    if d.is_empty():
-        return "nog geen driejaarscijfer: te weinig waarneembare jaren"
-    volledig = d.filter(pl.col("Volledig") & pl.col("Percentage").is_not_null())
-    if volledig.is_empty():
-        return "geen volledige periode (onvolledig of te weinig studenten)"
-    rij = volledig.sort("Jaartijdvak").row(-1, named=True)
-    return rij["Percentage"], rij["Periode"]
+def _getal(n: int) -> str:
+    """Getal met een punt per duizendtal: ``1743`` wordt ``"1.743"``."""
+    return f"{n:,}".replace(",", ".")
 
 
-def _tegel_driejaar(r: Resultaten, naam: str, sleutel: str) -> Kerncijfer:
-    uit = _driejaar(r, sleutel.upper())
-    if isinstance(uit, str):
-        return Kerncijfer(naam, ov.pct(None), uit, DEFINITIES[sleutel])
-    waarde, periode = uit
-    return Kerncijfer(
-        naam, ov.pct(waarde), f"driejaarscijfer {periode}", DEFINITIES[sleutel], waarde
-    )
+def kerncijfers(a: Analyse) -> list[Kerncijfer]:
+    """Zes tellingen over je bestanden, zonder definitiekeuzes.
 
-
-def _tegel_instroom(r: Resultaten) -> Kerncijfer:
-    hulp = DEFINITIES["instroomcohort"]
-    instroom = r.instroom.group_by("Cohort").agg(pl.col("Aantal").sum()).sort("Cohort")
-    if instroom.is_empty():
-        return Kerncijfer("Instroom", "–", "geen instroomcohort", hulp)
-    cohort, n = instroom.row(-1)
-    return Kerncijfer(
-        "Instroom", str(n), f"instroomcohort {cohort}, studenten", hulp, n
-    )
-
-
-def _tegel_uitval(r: Resultaten) -> Kerncijfer:
-    naam, hulp = "Uitval na 1 jaar", DEFINITIES["uitval"]
-    bekend = (
-        ov.rendement_aggregeer(r.cohorten, ["Cohort"])
-        .filter((pl.col("N_uitval_1") == pl.col("Instroom")) & (pl.col("Instroom") > 0))
-        .sort("Cohort")
-        if not r.cohorten.is_empty()
-        else r.cohorten
-    )
-    if bekend.is_empty():
-        return Kerncijfer(
-            naam, "–", "nog geen cohort waarvan dit na 1 jaar bekend is", hulp
-        )
-    rij = bekend.row(-1, named=True)
-    return Kerncijfer(
-        naam,
-        ov.pct(rij["Uitval_1_percentage"]),
-        f"instroomcohort {rij['Cohort']}",
-        hulp,
-        rij["Uitval_1_percentage"],
-    )
-
-
-## Na hoeveel jaar we doorstroom meten: de gangbare duur van een mbo-opleiding.
-DOORSTROOM_JAREN = 3
-
-
-def _tegel_doorstroom(r: Resultaten) -> Kerncijfer:
-    """Van de instromers met een diploma: aandeel dat verder ging op hoger niveau.
-
-    Gemeten na ``DOORSTROOM_JAREN`` (of korter als dat nog niet kan), voor het
-    laatste cohort dat dan helemaal waarneembaar is. Als aandeel van alle
-    instromers zou het cijfer vooral laten zien hoeveel er nog studeren.
+    Geen indicatoren of cohorten: alleen wat er in de bestanden staat (studenten,
+    1 oktobers, inschrijvingen, diploma's, opleidingen, BRIN's). Die staan op de
+    pagina's met hun definitie erbij.
     """
-    naam, verder, onbekend = (
-        "Doorstroom na diploma",
-        coh.CATEGORIEEN[0],
-        coh.CATEGORIEEN[8],
-    )
-    met_diploma = coh.CATEGORIEEN[:3]
-    hulp = f"{DEFINITIES['loopbaanstatus']}\n\n{CATEGORIE_TOELICHTING[verder]}"
-    status = pl.col("Status")
-    per_cohort = (
-        r.loopbanen.filter(pl.col("Jaren") <= DOORSTROOM_JAREN)
-        .group_by("Jaren", "Cohort")
-        .agg(
-            pl.col("Aantal").filter(status.is_in(met_diploma)).sum().alias("dipl"),
-            pl.col("Aantal").filter(status == verder).sum().alias("verder"),
-            pl.col("Aantal").filter(status == onbekend).sum().alias("nog"),
-        )
-        .filter((pl.col("nog") == 0) & (pl.col("dipl") > 0))
-        .sort("Jaren", "Cohort")
-    )
-    if per_cohort.is_empty():
-        return Kerncijfer(naam, "–", "nog geen cohort met diploma's waarneembaar", hulp)
-    rij = per_cohort.row(-1, named=True)
-    deel = round(rij["verder"] / rij["dipl"] * 100, 1)
-    return Kerncijfer(
-        naam,
-        ov.pct(deel),
-        f"van de gediplomeerden, instroomcohort {rij['Cohort']}, na {rij['Jaren']} jaar",
-        hulp,
-        deel,
-    )
-
-
-def kerncijfers(r: Resultaten) -> list[Kerncijfer]:
-    """De zes kerncijfers op instellingsniveau, uit de bestaande tabellen.
-
-    Jaar-, diploma- en startersresultaat: driejaarscijfer van de laatste volledige
-    periode (geen norm). Instroom: laatste instroomcohort. Uitval na 1 jaar: laatste
-    cohort waarvan dat voor het hele cohort waarneembaar is. Doorstroom: van de
-    gediplomeerden het aandeel "Diploma, verder op hoger niveau", na drie jaar.
-    """
+    w = a.waarneming
+    ## Alleen de 1 oktobers waarop we rekenen; een RO noemt ook oudere
+    ## inschrijvingen, maar die jaren zijn niet volledig.
+    jaren = _jaren(w)
+    pm = a.peilmomenten.filter(pl.col("Jaar").is_in(jaren))
+    dip = a.diplomas.filter(pl.col("Datum") >= w.diplomas_vanaf)
+    binnen = [g for g in w.gaten if w.eerste_jaar < g < w.laatste_jaar]
+    gaten = f", zonder {', '.join(map(str, binnen))}" if binnen else ""
+    laatste = pm.filter(pl.col("Jaar") == w.laatste_jaar)[_P].n_unique()
+    crebos = canoniek(pm.drop_nulls("Opleidingcode"), a.opvolgers)["Opleidingcode"]
+    brins = sorted(a.peilmomenten["BRIN"].drop_nulls().unique().to_list())
+    studenten = pm[_P].n_unique()
     return [
-        _tegel_driejaar(r, "Jaarresultaat", "jr"),
-        _tegel_driejaar(r, "Diplomaresultaat", "dr"),
-        _tegel_driejaar(r, "Startersresultaat", "sr"),
-        _tegel_instroom(r),
-        _tegel_uitval(r),
-        _tegel_doorstroom(r),
+        Kerncijfer(
+            "Studenten",
+            _getal(studenten),
+            "verschillende studenten op deze 1 oktobers",
+            "Iedereen die op minstens één van de 1 oktobers hiernaast ingeschreven "
+            "stond, alle niveaus en leerwegen.",
+        ),
+        Kerncijfer(
+            "Schooljaren",
+            str(len(jaren)),
+            f"1 oktober {w.eerste_jaar} t/m {w.laatste_jaar}{gaten}",
+            "Het aantal 1 oktobers (peildata) dat je bestanden volledig dekken. "
+            "Daarop rekent het dashboard.",
+        ),
+        Kerncijfer(
+            f"Ingeschreven op 1 oktober {w.laatste_jaar}",
+            _getal(laatste),
+            "studenten op de laatste peildatum",
+            "Studenten met een inschrijving op de laatste 1 oktober in je bestanden.",
+        ),
+        Kerncijfer(
+            "Diploma's",
+            _getal(dip.height),
+            f"behaald vanaf {w.diplomas_vanaf:%d-%m-%Y}",
+            "Alle mbo-diploma's in je bestanden, ook van studenten die er nog "
+            "studeren.",
+        ),
+        Kerncijfer(
+            "Opleidingen",
+            str(crebos.n_unique()),
+            "crebo's; een vernieuwing telt als dezelfde",
+            "Verschillende crebo's met een inschrijving. Een crebo-vernieuwing "
+            "(opvolger) telt als dezelfde opleiding.",
+        ),
+        Kerncijfer(
+            "BRIN-nummers",
+            str(len(brins)),
+            ", ".join(brins) if len(brins) <= 3 else "samen één instelling",
+            "Alle BRIN-nummers in je bestanden tellen samen als één instelling.",
+        ),
     ]

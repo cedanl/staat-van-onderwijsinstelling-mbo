@@ -44,9 +44,12 @@ analyse = ui.huidige_analyse()
 if analyse is not None:
     ui.toon_meldingen(analyse)
     if analyse.ok:
-        st.subheader("Kerncijfers")
-        ui.toon_label()
-        tegels = kerncijfers(ui.resultaten(analyse))
+        st.subheader("In je bestanden")
+        st.caption(
+            "Tellingen, zonder definitiekeuzes. Studiesucces, cohorten en "
+            "loopbanen staan op de andere pagina's, met hun definitie erbij."
+        )
+        tegels = kerncijfers(analyse)
         for rij in (tegels[:3], tegels[3:]):
             for kolom, t in zip(st.columns(3), rij, strict=True):
                 kolom.metric(t.naam, t.waarde, help=t.help or None)

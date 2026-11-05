@@ -1,5 +1,6 @@
 """Invoer inlezen: ruwe RO/TBG-i-bestanden of de star van mbo-bekostiging-bestanden."""
 
+import json
 import os
 import zipfile
 from collections.abc import Iterator
@@ -61,15 +62,28 @@ def _bestanden(invoer: list[Path], werkmap: Path) -> list[Path]:
 
 
 def _lees_parquet(bestanden: list[Path]) -> dict[str, pl.DataFrame]:
-    star = {p.stem: pl.read_parquet(p) for p in bestanden if p.suffix == ".parquet"}
+    star = {
+        p.stem: pl.read_parquet(p) for p in bestanden if p.suffix.lower() == ".parquet"
+    }
     ontbrekend = [t for t in VEREISTE_TABELLEN if t not in star]
     if ontbrekend:
         raise InvoerFout(
-            "Het datamodel is niet compleet. Ontbreekt: "
+            "Het datamodel is niet compleet of komt van een oudere versie van "
+            "mbo-bekostiging-bestanden. Ontbreekt: "
             + ", ".join(ontbrekend)
-            + ". Gebruik de volledige uitvoer van mbo-bekostiging-bestanden."
+            + ". Maak het datamodel opnieuw met de nieuwste versie, of upload de "
+            "ruwe RO-bestanden."
         )
     return star
+
+
+def _kwaliteitsfouten(doel: Path) -> list[str]:
+    """De fouten uit ``diagnose/quality.json`` van mbo-bekostiging-bestanden."""
+    try:
+        q = json.loads((doel / "diagnose" / "quality.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    return [str(f) for f in q.get("errors", [])]
 
 
 def _controleer_ruwe_bestanden(bestanden: list[Path]) -> None:
@@ -120,7 +134,14 @@ def _verwerk(bestanden: list[Path], werkmap: Path) -> dict[str, pl.DataFrame]:
         try:
             run_auto_pipeline(b, doel)
         except KwaliteitsFout as e:
-            raise InvoerFout(f"{b.name}: kwaliteitscontrole mislukt. {e}") from e
+            fouten = _kwaliteitsfouten(doel)
+            reden = "; ".join(fouten[:3]) if fouten else _eerste_regel(e)
+            soort = "RO" if detect_bestandstype(b) == "ro" else "TBG-i-bestand"
+            raise InvoerFout(
+                f"{b.name}: de kwaliteitscontrole keurt dit bestand af. Reden: "
+                f"{reden}. Is het bestand bewerkt of afgebroken? Vraag dan een "
+                f"nieuw {soort} aan bij DUO."
+            ) from e
         except ValueError as e:
             raise InvoerFout(
                 f"{b.name}: kan dit bestand niet lezen. Is het een echt DUO-bestand? "
@@ -130,8 +151,10 @@ def _verwerk(bestanden: list[Path], werkmap: Path) -> dict[str, pl.DataFrame]:
     try:
         run_star(brondata, werkmap / "star", scenario="smbo")
     except (KwaliteitsFout, ValueError) as e:
+        fouten = _kwaliteitsfouten(werkmap / "star")
+        reden = "; ".join(fouten[:3]) if fouten else _eerste_regel(e)
         raise InvoerFout(
-            f"Samenvoegen mislukt bij de kwaliteitscontrole. {_eerste_regel(e)}"
+            f"Samenvoegen mislukt bij de kwaliteitscontrole. Reden: {reden}."
         ) from e
     return _lees_parquet(sorted((werkmap / "star" / "datamodel").glob("*.parquet")))
 
@@ -148,6 +171,13 @@ def laad_star(invoer: list[Path], werkmap: Path) -> dict[str, pl.DataFrame]:
     bestanden = _bestanden(invoer, werkmap)
     if not bestanden:
         raise InvoerFout("Geen bestanden gevonden.")
-    if any(b.stem == "fact_inschrijving_schooljaar" for b in bestanden):
-        return _lees_parquet(bestanden)
+    parquet = [b for b in bestanden if b.suffix.lower() == ".parquet"]
+    if any(b.stem in VEREISTE_TABELLEN for b in parquet):
+        return _lees_parquet(parquet)
+    if parquet:
+        raise InvoerFout(
+            f"{parquet[0].name}: dit is geen RO, TBG-i of datamodel van "
+            "mbo-bekostiging-bestanden. Upload de ruwe RO-bestanden, of de map "
+            "datamodel."
+        )
     return _bouw_star(bestanden, werkmap)
